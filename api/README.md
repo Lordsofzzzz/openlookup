@@ -18,8 +18,8 @@ The API listens on `http://localhost:8000`. Interactive docs and the OpenAPI sch
 ## Endpoints
 
 - `GET /api/health`
-- `GET /api/domain/{name}` returns all sections in one JSON response.
-- `GET /api/domain/{name}/stream` emits one `section` SSE event per completed provider and a final `done` event.
+- `GET /api/v1/domain/{name}` returns all sections in one JSON response.
+- `GET /api/v1/domain/{name}/stream` emits one `section` SSE event per completed provider and a final `done` event.
 - Both domain endpoints accept `?refresh=1`, which bypasses the section cache and uses a stricter rate limit.
 
 Every section has `section`, `status`, `source`, `fetched_at`, `cached`, `data`, and an optional `message`. A failed provider returns its own error or timeout result; successful sections are cached independently.

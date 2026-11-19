@@ -18,7 +18,7 @@ from providers import ip as ip_provider
 from providers import rdap as rdap_provider
 from providers import subdomains as subdomains_provider
 
-router = APIRouter(prefix="/api", tags=["domain"])
+router = APIRouter(prefix="/api/v1", tags=["domain"])
 _SECTION_TIMEOUTS = {"dns": 6.0, "rdap": 8.0, "subdomains": 12.0, "ip": 6.0}
 _SOURCE_NAMES = {
     "dns": "system DNS resolver",

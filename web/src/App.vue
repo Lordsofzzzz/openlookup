@@ -88,7 +88,7 @@ async function investigate() {
   await nextTick()
   inputEl.value?.focus()
 
-  eventSource = new EventSource(`/api/domain/${encodeURIComponent(host)}/stream`)
+  eventSource = new EventSource(`/api/v1/domain/${encodeURIComponent(host)}/stream`)
   eventSource.addEventListener('section', event => {
     try {
       const result = JSON.parse(event.data)
