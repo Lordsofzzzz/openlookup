@@ -10,6 +10,7 @@ _SECTION_TTLS = {
     "ip": 300,
     "subdomains": 3600,
     "rdap": 86400,
+    "email_security": 300,
 }
 _MAX_TTL = max(_SECTION_TTLS.values())
 

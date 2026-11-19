@@ -16,6 +16,7 @@ const sectionNames = [
   { key: 'dns', title: 'DNS record set' },
   { key: 'rdap', title: 'Registration profile' },
   { key: 'subdomains', title: 'Subdomains' },
+  { key: 'email_security', title: 'Email security' },
 ]
 const domainPattern = /^(?=.{1,253}$)([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+(?:[a-z]{2,63}|xn--[a-z0-9-]{2,59})$/
 
@@ -133,7 +134,7 @@ onBeforeUnmount(() => {
         <div>
           <div class="kicker">Passive reconnaissance workspace</div>
           <h1 class="page-title">Domain investigation</h1>
-          <div class="page-subtitle">Inspect public DNS, registration, certificate, and network data.</div>
+          <div class="page-subtitle">Inspect public DNS, email policy, registration, certificate, and network data.</div>
         </div>
         <form v-if="idle" class="search main-search has-cursor" @submit.prevent="investigate">
           <input :ref="setInput" v-model="domain" type="text" :readonly="streamStatus === 'loading'" placeholder="Enter a domain" aria-label="Domain name" autocomplete="off" autocapitalize="none" spellcheck="false" inputmode="url" autofocus />
@@ -204,12 +205,28 @@ onBeforeUnmount(() => {
               <div v-if="sectionState('rdap')?.message" class="note">{{ sectionState('rdap').message }}</div>
               <dl v-if="sectionState('rdap')?.data" class="profile-list">
                 <div class="profile-row"><dt>Registrar</dt><dd>{{ sectionState('rdap').data.registrar || '—' }}</dd></div>
+                <div class="profile-row nameservers-row"><dt>Nameservers</dt><dd><span v-for="server in sectionState('rdap').data.nameservers || []" :key="server">{{ server }}</span><span v-if="!sectionState('rdap').data.nameservers?.length">—</span></dd></div>
                 <div class="profile-row"><dt>Created</dt><dd>{{ displayDate(sectionState('rdap').data.created) }}</dd></div>
                 <div class="profile-row"><dt>Updated</dt><dd>{{ displayDate(sectionState('rdap').data.updated) }}</dd></div>
                 <div class="profile-row"><dt>Expires</dt><dd>{{ displayDate(sectionState('rdap').data.expires) }}</dd></div>
                 <div v-for="status in sectionState('rdap').data.status || []" :key="status" class="profile-row"><dt>Status</dt><dd>{{ status }}</dd></div>
               </dl>
               <div v-if="sectionState('rdap')" class="section-meta">{{ sectionState('rdap').source }} · {{ displayDate(sectionState('rdap').fetched_at) }}<span v-if="sectionState('rdap').cached"> · cached</span></div>
+            </section>
+
+            <section class="side-section">
+              <h2 class="side-heading">Email security <span class="section-index" :class="sectionStatus('email_security')">{{ sectionStatus('email_security').toUpperCase() }}</span></h2>
+              <div v-if="sectionState('email_security')?.message" class="note">{{ sectionState('email_security').message }}</div>
+              <template v-if="sectionState('email_security')?.data">
+                <div v-for="kind in ['spf', 'dmarc']" :key="kind" class="email-policy">
+                  <div class="email-policy-heading"><strong>{{ kind.toUpperCase() }}</strong><span :class="sectionState('email_security').data[kind].status">{{ sectionState('email_security').data[kind].status }}</span></div>
+                  <p>{{ sectionState('email_security').data[kind].summary }}</p>
+                  <div v-for="record in sectionState('email_security').data[kind].records" :key="record" class="email-record">{{ record }}</div>
+                </div>
+                <div v-for="error in sectionState('email_security').data.errors || []" :key="error" class="note">{{ error }}</div>
+                <div class="fact-foot email-foot">Checks public DNS records only; a record’s presence doesn’t guarantee mail delivery.</div>
+              </template>
+              <div v-if="sectionState('email_security')" class="section-meta">{{ sectionState('email_security').source }} · {{ displayDate(sectionState('email_security').fetched_at) }}<span v-if="sectionState('email_security').cached"> · cached</span></div>
             </section>
 
             <section class="side-section">
@@ -360,6 +377,16 @@ td.value{font:11px var(--mono);color:#cbd7cd;overflow-wrap:anywhere;max-width:33
 .profile-row{display:grid;grid-template-columns:105px minmax(0,1fr);gap:10px;padding:12px 0;border-bottom:1px solid var(--line-soft);font-size:11px}
 .profile-row dt{color:var(--muted)}
 .profile-row dd{margin:0;text-align:right;overflow-wrap:anywhere;color:var(--text)}
+.nameservers-row dd{display:grid;gap:4px;font:10px var(--mono)}
+.email-policy{padding:13px 0;border-bottom:1px solid var(--line-soft)}
+.email-policy-heading{display:flex;justify-content:space-between;gap:12px;font:11px var(--mono);text-transform:uppercase}
+.email-policy-heading strong{color:var(--acid)}
+.email-policy-heading span{color:var(--muted)}
+.email-policy-heading span.found{color:var(--acid)}
+.email-policy-heading span.missing,.email-policy-heading span.multiple,.email-policy-heading span.unavailable{color:var(--amber)}
+.email-policy p{margin:7px 0;color:var(--muted);font-size:11px;line-height:1.55}
+.email-record{margin-top:6px;padding:8px;background:var(--surface);font:10px/1.5 var(--mono);overflow-wrap:anywhere;color:#cbd7cd}
+.email-foot{margin-top:10px;line-height:1.5}
 .profile-row .quiet{color:var(--muted)}
 .evidence-item{display:grid;grid-template-columns:12px minmax(0,1fr);gap:10px;padding:12px 0;border-bottom:1px solid var(--line-soft)}
 .evidence-mark{width:6px;height:6px;background:var(--acid);margin-top:4px}

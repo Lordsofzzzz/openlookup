@@ -14,17 +14,25 @@ from core.models import DomainLookupResponse, ProviderResult
 from core.ratelimit import LocalRateLimiter
 from core.validate import normalize_domain
 from providers import dns as dns_provider
+from providers import email_security as email_security_provider
 from providers import ip as ip_provider
 from providers import rdap as rdap_provider
 from providers import subdomains as subdomains_provider
 
 router = APIRouter(prefix="/api/v1", tags=["domain"])
-_SECTION_TIMEOUTS = {"dns": 6.0, "rdap": 8.0, "subdomains": 12.0, "ip": 6.0}
+_SECTION_TIMEOUTS = {
+    "dns": 6.0,
+    "rdap": 8.0,
+    "subdomains": 12.0,
+    "ip": 6.0,
+    "email_security": 6.0,
+}
 _SOURCE_NAMES = {
     "dns": "system DNS resolver",
     "rdap": "IANA RDAP bootstrap",
     "subdomains": "crt.sh / Certspotter",
     "ip": "Team Cymru DNS",
+    "email_security": "system DNS resolver",
 }
 
 
@@ -46,6 +54,7 @@ async def _load_section(
         "rdap": lambda: rdap_provider.lookup(domain, client),
         "subdomains": lambda: subdomains_provider.lookup(domain, client),
         "ip": lambda: ip_provider.lookup(domain, resolver),
+        "email_security": lambda: email_security_provider.lookup(domain, resolver),
     }
     source = _SOURCE_NAMES[section]
     fetched_at = datetime.now(UTC)
@@ -99,7 +108,7 @@ async def _all_sections(
 ) -> dict[str, ProviderResult]:
     semaphore: asyncio.Semaphore = request.app.state.lookup_semaphore
     async with semaphore:
-        names = ("dns", "rdap", "subdomains", "ip")
+        names = ("dns", "rdap", "subdomains", "ip", "email_security")
         results = await asyncio.gather(
             *(_load_section(request, domain, section, refresh) for section in names)
         )
@@ -134,7 +143,7 @@ async def stream_domain(
     async def events() -> AsyncIterator[str]:
         semaphore: asyncio.Semaphore = request.app.state.lookup_semaphore
         async with semaphore:
-            names = ("dns", "rdap", "subdomains", "ip")
+            names = ("dns", "rdap", "subdomains", "ip", "email_security")
             tasks = [
                 asyncio.create_task(_load_section(request, domain, section, refresh))
                 for section in names

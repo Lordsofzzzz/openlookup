@@ -1,6 +1,6 @@
 # OpenLookup API
 
-Async, stateless API for passive DNS, RDAP, certificate-transparency, and ASN lookups. It has no database. The in-memory cache and rate limiter are per process; use a shared Redis-backed implementation before running multiple API workers or instances.
+Async, stateless API for passive DNS, email security, RDAP, certificate-transparency, and ASN lookups. It has no database. The in-memory cache and rate limiter are per process; use a shared Redis-backed implementation before running multiple API workers or instances.
 
 ## Run locally
 
@@ -27,6 +27,7 @@ Every section has `section`, `status`, `source`, `fetched_at`, `cached`, `data`,
 ## Data sources and cache
 
 - DNS: configured recursive resolver via dnspython; A, AAAA, MX, NS, TXT, and CNAME records (5 minute cache).
+- Email security: SPF at the domain and DMARC at `_dmarc.<domain>` via the configured recursive resolver (5 minute cache).
 - Registration: IANA RDAP bootstrap and the selected registry endpoint (24 hour cache).
 - Subdomains: crt.sh with Certspotter fallback (1 hour cache).
 - IP/ASN: public A/AAAA records and Team Cymru's DNS-based ASN service (5 minute cache). Private and non-global addresses are excluded from ASN queries.
