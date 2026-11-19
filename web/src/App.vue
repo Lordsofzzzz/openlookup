@@ -1,0 +1,391 @@
+<script setup>
+import { computed, nextTick, onBeforeUnmount, ref } from 'vue'
+
+const domain = ref('')
+const resultDomain = ref('')
+const notice = ref('')
+const sections = ref({})
+const streamStatus = ref('idle')
+const inputEl = ref(null)
+const cursorEl = ref(null)
+let removeInputListeners
+let eventSource
+const idle = computed(() => streamStatus.value === 'idle')
+const sectionNames = [
+  { key: 'ip', title: 'Infrastructure' },
+  { key: 'dns', title: 'DNS record set' },
+  { key: 'rdap', title: 'Registration profile' },
+  { key: 'subdomains', title: 'Subdomains' },
+]
+const domainPattern = /^(?=.{1,253}$)([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+(?:[a-z]{2,63}|xn--[a-z0-9-]{2,59})$/
+
+function normalize(value) {
+  let candidate = value.trim().toLowerCase().replace(/^[a-z]+:\/\//, '').split(/[/?#]/)[0].replace(/\.$/, '')
+  if (!candidate || !/^[\p{L}\p{N}.-]+$/u.test(candidate)) return ''
+  try { candidate = new URL(`http://${candidate}`).hostname.toLowerCase() } catch { return '' }
+  return candidate
+}
+function placeCursor() {
+  const input = inputEl.value, cursor = cursorEl.value
+  if (!input || !cursor || input.readOnly || document.activeElement !== input || input.selectionStart !== input.selectionEnd) { if (cursor) cursor.style.display = 'none'; return }
+  const styles = getComputedStyle(input), canvas = document.createElement('canvas'), ctx = canvas.getContext('2d')
+  ctx.font = `${styles.fontStyle} ${styles.fontWeight} ${styles.fontSize} ${styles.fontFamily}`
+  const x = input.offsetLeft + parseFloat(styles.paddingLeft) + ctx.measureText(input.value.slice(0, input.selectionStart || 0)).width - input.scrollLeft
+  const height = Math.round(parseFloat(styles.fontSize) * 1.3), width = Math.max(6, Math.round(ctx.measureText('0').width))
+  if (x < input.offsetLeft || x > input.offsetLeft + input.clientWidth - width) { cursor.style.display = 'none'; return }
+  cursor.style.display = 'block'; cursor.style.left = `${Math.round(x)}px`; cursor.style.top = `${Math.round(input.offsetTop + (input.offsetHeight - height) / 2)}px`; cursor.style.width = `${width}px`; cursor.style.height = `${height}px`
+}
+function setInput(el) {
+  removeInputListeners?.()
+  inputEl.value = el
+  if (!el) return
+  const updateCursor = () => setTimeout(placeCursor, 0)
+  const events = ['input', 'keyup', 'keydown', 'click', 'focus', 'blur', 'select', 'scroll']
+  events.forEach(event => el.addEventListener(event, updateCursor))
+  window.addEventListener('resize', placeCursor)
+  removeInputListeners = () => {
+    events.forEach(event => el.removeEventListener(event, updateCursor))
+    window.removeEventListener('resize', placeCursor)
+    removeInputListeners = null
+  }
+  setTimeout(placeCursor, 50)
+}
+document.addEventListener('selectionchange', placeCursor)
+function closeStream() {
+  eventSource?.close()
+  eventSource = null
+}
+function resetSearch() {
+  closeStream()
+  domain.value = ''
+  resultDomain.value = ''
+  sections.value = {}
+  notice.value = ''
+  streamStatus.value = 'idle'
+  document.body.classList.remove('has-results')
+}
+function sectionState(key) { return sections.value[key] ?? null }
+function sectionStatus(key) {
+  return sectionState(key)?.status ?? (streamStatus.value === 'loading' ? 'loading' : 'waiting')
+}
+function displayDate(value) {
+  if (!value) return '—'
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString()
+}
+async function investigate() {
+  const host = normalize(domain.value)
+  if (!host) { notice.value = 'Enter a domain to continue.'; inputEl.value?.focus(); return }
+  if (!domainPattern.test(host)) { notice.value = `“${domain.value.trim()}” is not a valid domain.`; inputEl.value?.focus(); return }
+
+  closeStream()
+  sections.value = {}
+  domain.value = host
+  resultDomain.value = host
+  notice.value = ''
+  streamStatus.value = 'loading'
+  document.body.classList.add('has-results')
+  await nextTick()
+  inputEl.value?.focus()
+
+  eventSource = new EventSource(`/api/domain/${encodeURIComponent(host)}/stream`)
+  eventSource.addEventListener('section', event => {
+    try {
+      const result = JSON.parse(event.data)
+      if (!sectionNames.some(section => section.key === result.section)) return
+      sections.value = { ...sections.value, [result.section]: result }
+    } catch {
+      notice.value = 'The API sent an unreadable section response.'
+    }
+  })
+  eventSource.addEventListener('done', () => {
+    streamStatus.value = 'complete'
+    closeStream()
+  })
+  eventSource.onerror = () => {
+    if (streamStatus.value !== 'loading') return
+    streamStatus.value = 'error'
+    notice.value = 'Could not connect to the lookup API. Check that the backend is running.'
+    closeStream()
+  }
+}
+onBeforeUnmount(() => {
+  closeStream()
+  removeInputListeners?.()
+  document.removeEventListener('selectionchange', placeCursor)
+})
+</script>
+
+<template>
+  <div class="shell">
+    <header class="topbar">
+      <a class="brand" href="#" aria-label="OpenLookup home" @click.prevent="resetSearch"><span class="brand-mark"><svg width="18" height="18" viewBox="0 0 9 9" shape-rendering="crispEdges" aria-hidden="true"><rect x="1" y="0" width="4" height="1" fill="#11180f"/><rect x="0" y="1" width="1" height="1" fill="#11180f"/><rect x="5" y="1" width="1" height="1" fill="#11180f"/><rect x="0" y="2" width="1" height="1" fill="#11180f"/><rect x="5" y="2" width="1" height="1" fill="#11180f"/><rect x="2" y="2" width="2" height="1" fill="#4a6637"/><rect x="0" y="3" width="1" height="1" fill="#11180f"/><rect x="5" y="3" width="1" height="1" fill="#11180f"/><rect x="2" y="3" width="1" height="1" fill="#4a6637"/><rect x="0" y="4" width="1" height="1" fill="#11180f"/><rect x="5" y="4" width="1" height="1" fill="#11180f"/><rect x="1" y="5" width="4" height="1" fill="#11180f"/><rect x="6" y="5" width="1" height="1" fill="#11180f"/><rect x="6" y="6" width="2" height="1" fill="#11180f"/><rect x="7" y="7" width="2" height="1" fill="#11180f"/><rect x="8" y="8" width="1" height="1" fill="#11180f"/></svg></span><span class="brand-text">OpenLookup</span></a>
+      <form v-if="!idle" class="search top-search has-cursor" @submit.prevent="investigate">
+        <input :ref="setInput" v-model="domain" type="text" :readonly="streamStatus === 'loading'" placeholder="Enter a domain" aria-label="Domain name" autocomplete="off" autocapitalize="none" spellcheck="false" inputmode="url" />
+        <span ref="cursorEl" class="cursor" aria-hidden="true"></span>
+        <button type="submit" :disabled="streamStatus === 'loading'">{{ streamStatus === 'loading' ? 'LOOKING UP…' : 'LOOK UP ↗' }}</button>
+      </form>
+      <div class="top-status"><span class="status-square"></span> WORKSPACE / PUBLIC SOURCES</div>
+    </header>
+
+    <main class="workspace" :class="{ idle }">
+      <section class="command-row" aria-label="Domain lookup">
+        <div>
+          <div class="kicker">Passive reconnaissance workspace</div>
+          <h1 class="page-title">Domain investigation</h1>
+          <div class="page-subtitle">Inspect public DNS, registration, certificate, and network data.</div>
+        </div>
+        <form v-if="idle" class="search main-search has-cursor" @submit.prevent="investigate">
+          <input :ref="setInput" v-model="domain" type="text" :readonly="streamStatus === 'loading'" placeholder="Enter a domain" aria-label="Domain name" autocomplete="off" autocapitalize="none" spellcheck="false" inputmode="url" autofocus />
+          <span ref="cursorEl" class="cursor" aria-hidden="true"></span>
+          <button type="submit" :disabled="streamStatus === 'loading'">{{ streamStatus === 'loading' ? 'LOOKING UP…' : 'LOOK UP ↗' }}</button>
+        </form>
+        <div class="search-hint">PUBLIC SOURCES ONLY · NO ACTIVE PROBING</div>
+      </section>
+      <div v-if="notice" id="notice" role="status">{{ notice }}</div>
+      <section v-if="!idle" id="results" aria-live="polite">
+        <div class="subject-head">
+          <div>
+            <div class="subject-label">Subject</div>
+            <h2 class="subject-name">{{ resultDomain }}</h2>
+            <div class="subject-meta">{{ streamStatus === 'loading' ? 'Lookup in progress' : streamStatus === 'complete' ? 'Lookup complete' : 'Lookup interrupted' }}</div>
+          </div>
+          <div class="demo-stamp">Public data</div>
+        </div>
+
+        <div class="layout">
+          <div class="main-col">
+            <section class="section">
+              <div class="section-heading"><h2>Infrastructure</h2><span class="section-index" :class="sectionStatus('ip')">{{ sectionStatus('ip').toUpperCase() }}</span></div>
+              <div v-if="sectionState('ip')?.message" class="note">{{ sectionState('ip').message }}</div>
+              <template v-if="sectionState('ip')?.data">
+                <div class="identity-block">
+                  <div class="primary-fact">
+                    <div class="fact-label">Public IP addresses</div>
+                    <div v-if="sectionState('ip').data.addresses?.length" class="ip-address address-list">
+                      <div v-for="address in sectionState('ip').data.addresses" :key="address">{{ address }}</div>
+                    </div>
+                    <div v-else class="fact-foot">No public IP addresses returned.</div>
+                  </div>
+                  <div class="secondary-facts">
+                    <div v-for="network in sectionState('ip').data.networks || []" :key="network.prefix" class="secondary-fact">
+                      <div class="fact-label">{{ network.asn }}</div>
+                      <strong>{{ network.name || 'ASN details' }}</strong>
+                      <small>{{ network.prefix }} · {{ network.country }}</small>
+                    </div>
+                    <div v-if="!sectionState('ip').data.networks?.length" class="secondary-fact fact-foot">No ASN details returned.</div>
+                  </div>
+                </div>
+              </template>
+              <div v-if="sectionState('ip')" class="section-meta">{{ sectionState('ip').source }} · {{ displayDate(sectionState('ip').fetched_at) }}<span v-if="sectionState('ip').cached"> · cached</span></div>
+            </section>
+
+            <section class="section">
+              <div class="section-heading"><h2>DNS record set</h2><span class="section-index" :class="sectionStatus('dns')">{{ sectionStatus('dns').toUpperCase() }}</span></div>
+              <div v-if="sectionState('dns')?.message" class="note">{{ sectionState('dns').message }}</div>
+              <div v-if="sectionState('dns')?.data" class="table-wrap">
+                <table>
+                  <thead><tr><th>Type</th><th>Name</th><th>Record value</th><th>TTL</th></tr></thead>
+                  <tbody>
+                    <tr v-for="(record, index) in sectionState('dns').data.records" :key="`${record.type}-${record.value}-${index}`">
+                      <td class="record-type">{{ record.type }}</td><td>{{ record.name }}</td><td class="value">{{ record.value }}</td><td class="ttl">{{ record.ttl }}</td>
+                    </tr>
+                    <tr v-if="!sectionState('dns').data.records?.length"><td colspan="4" class="fact-foot">No DNS records returned.</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <div v-if="sectionState('dns')" class="section-meta">{{ sectionState('dns').source }} · {{ displayDate(sectionState('dns').fetched_at) }}<span v-if="sectionState('dns').cached"> · cached</span></div>
+            </section>
+          </div>
+
+          <aside class="side-col">
+            <section class="side-section">
+              <h2 class="side-heading">Registration profile <span class="section-index" :class="sectionStatus('rdap')">{{ sectionStatus('rdap').toUpperCase() }}</span></h2>
+              <div v-if="sectionState('rdap')?.message" class="note">{{ sectionState('rdap').message }}</div>
+              <dl v-if="sectionState('rdap')?.data" class="profile-list">
+                <div class="profile-row"><dt>Registrar</dt><dd>{{ sectionState('rdap').data.registrar || '—' }}</dd></div>
+                <div class="profile-row"><dt>Created</dt><dd>{{ displayDate(sectionState('rdap').data.created) }}</dd></div>
+                <div class="profile-row"><dt>Updated</dt><dd>{{ displayDate(sectionState('rdap').data.updated) }}</dd></div>
+                <div class="profile-row"><dt>Expires</dt><dd>{{ displayDate(sectionState('rdap').data.expires) }}</dd></div>
+                <div v-for="status in sectionState('rdap').data.status || []" :key="status" class="profile-row"><dt>Status</dt><dd>{{ status }}</dd></div>
+              </dl>
+              <div v-if="sectionState('rdap')" class="section-meta">{{ sectionState('rdap').source }} · {{ displayDate(sectionState('rdap').fetched_at) }}<span v-if="sectionState('rdap').cached"> · cached</span></div>
+            </section>
+
+            <section class="side-section">
+              <h2 class="side-heading">Subdomains <span class="section-index" :class="sectionStatus('subdomains')">{{ sectionStatus('subdomains').toUpperCase() }}</span></h2>
+              <div v-if="sectionState('subdomains')?.message" class="note">{{ sectionState('subdomains').message }}</div>
+              <template v-if="sectionState('subdomains')?.data">
+                <div class="fact-foot">{{ sectionState('subdomains').data.count }} found</div>
+                <ul class="subdomain-list">
+                  <li v-for="name in sectionState('subdomains').data.subdomains" :key="name">{{ name }}</li>
+                </ul>
+              </template>
+              <div v-if="sectionState('subdomains')" class="section-meta">{{ sectionState('subdomains').source }} · {{ displayDate(sectionState('subdomains').fetched_at) }}<span v-if="sectionState('subdomains').cached"> · cached</span></div>
+            </section>
+          </aside>
+        </div>
+      </section>
+    </main>
+    <footer class="footer"><span class="footer-brand">OpenLookup</span></footer>
+  </div>
+</template>
+
+<style>
+
+:root{
+  --bg:#0a0e0b;--surface:#101612;--surface-2:#151d17;--surface-3:#1a241c;
+  --line:#29362c;--line-soft:#202b22;--text:#e7eee8;--muted:#a3b2a7;
+  --dim:#8a9a8d;--acid:#a7e66b;--acid-dim:#6e9c4c;--amber:#d8b66b;
+  --mono:"SFMono-Regular",Consolas,"Liberation Mono",monospace;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.brand-mark,.brand:hover .brand-mark{animation:none}.cursor{animation:none}}
+body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,Arial,sans-serif;font-size:14px;line-height:1.5;min-height:100vh}
+a{color:inherit;text-decoration:none}
+button,input{font:inherit}
+button{cursor:pointer}
+a:focus-visible,button:focus-visible{outline:2px solid var(--acid);outline-offset:2px}
+.shell{width:min(1380px,100% - 64px);margin:0 auto}
+.topbar{height:68px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:28px}
+.brand{display:flex;align-items:center;gap:11px;white-space:nowrap;font:700 23px "Pixelify Sans",sans-serif;letter-spacing:.2px}
+.brand-mark{width:29px;height:29px;display:grid;place-items:center;background:var(--acid);color:#11180f;font:700 20px "Pixelify Sans";box-shadow:3px 3px 0 #4a6637;transition:transform .12s steps(2),box-shadow .12s steps(2);animation:markBlink 6s steps(1) infinite}
+.brand:hover .brand-mark{transform:translate(-2px,-2px);box-shadow:5px 5px 0 #4a6637}
+.brand:active .brand-mark{transform:translate(2px,2px);box-shadow:1px 1px 0 #4a6637}
+@keyframes markBlink{0%,94%,98%,100%{background:var(--acid)}96%{background:#4a6637}}
+.brand:hover .brand-mark{animation:markBounce .35s steps(3) 1}
+@keyframes markBounce{0%{transform:translate(0,0)}40%{transform:translate(-2px,-6px)}100%{transform:translate(-2px,-2px)}}
+.top-status{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:11px;white-space:nowrap}
+.status-square{width:7px;height:7px;background:var(--acid)}
+.shell{display:flex;flex-direction:column;min-height:100vh}
+.workspace{flex:1;padding:31px 0 60px}
+.workspace:not(.idle) .command-row{display:none}
+#results{transition:opacity .2s ease}
+#results.out{opacity:0}
+#results.in{animation:resIn .45s ease both}
+@keyframes resIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+.command-row{transition:opacity .25s ease}
+.command-row.fade{opacity:0}
+.topbar{position:sticky;top:0;z-index:10;background:transparent}
+.topbar::before{content:"";position:absolute;z-index:-1;inset:0 calc((100vw - 100%)/-2);background:rgba(10,14,11,.72);border-bottom:1px solid var(--line);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+.topbar{border-bottom:0}
+.topbar .search{flex:0 1 440px;width:auto;height:38px;margin:0 0 0 auto}
+.topbar .search button{padding:0 14px}
+.has-results .top-status{display:none}
+.workspace.idle{display:flex;flex-direction:column;justify-content:center;padding:0 0 9vh}
+.idle .command-row{border-bottom:0;padding:0;gap:22px}
+.idle .command-row>div:first-child{text-align:center}
+.idle .page-title{font-size:clamp(30px,5vw,46px);margin:12px 0 9px}
+.idle .page-subtitle{font-size:14px}
+.idle .search{width:min(640px,100%);height:54px}
+.idle .search input{font-size:14px}
+.idle .search button{padding:0 24px;font-size:12px}
+.idle .search-hint{margin-top:-4px}
+.idle #results{display:none}
+.workspace.idle{position:relative}
+.workspace.idle::before{content:"";position:absolute;inset:0 -40px;z-index:0;pointer-events:none;background-image:linear-gradient(rgba(167,230,107,.09) 1px,transparent 1px),linear-gradient(90deg,rgba(167,230,107,.09) 1px,transparent 1px);background-size:32px 32px;background-position:center center;-webkit-mask-image:radial-gradient(ellipse 55% 50% at 50% 50%,#000 0,transparent 100%);mask-image:radial-gradient(ellipse 55% 50% at 50% 50%,#000 0,transparent 100%)}
+.workspace.idle>*{position:relative;z-index:1}
+body{position:relative}
+.shell{position:relative;z-index:1}
+body.has-results::before{content:"";position:absolute;top:0;left:0;right:0;height:520px;z-index:0;pointer-events:none;background-image:linear-gradient(rgba(167,230,107,.08) 1px,transparent 1px),linear-gradient(90deg,rgba(167,230,107,.08) 1px,transparent 1px);background-size:32px 32px;-webkit-mask-image:radial-gradient(ellipse 480px 400px at 0 0,#000,transparent 100%),radial-gradient(ellipse 480px 400px at 100% 0,#000,transparent 100%);mask-image:radial-gradient(ellipse 480px 400px at 0 0,#000,transparent 100%),radial-gradient(ellipse 480px 400px at 100% 0,#000,transparent 100%)}
+.idle #notice{text-align:center}
+.command-row{display:grid;grid-template-columns:1fr;justify-items:center;gap:17px;padding:5px 0 27px;border-bottom:1px solid var(--line)}
+.command-row>div:first-child{width:100%;text-align:left}
+.kicker,.eyebrow{font-size:11px;text-transform:uppercase;letter-spacing:1.7px;color:var(--acid);font-weight:700}
+.page-title{font:600 29px/1.15 "Pixelify Sans",sans-serif;margin:8px 0 5px}
+.page-subtitle{color:var(--muted);font-size:12px;line-height:1.6}
+.search{position:relative;display:flex;min-width:0;width:min(560px,100%);justify-self:center;border:1px solid #435441;background:#0d130f;height:42px}
+.search:focus-within{border-color:var(--acid)}
+.search input{min-width:0;flex:1;background:transparent;border:0;outline:0;color:var(--text);padding:0 13px;font-size:12px}
+.search input::placeholder{color:var(--dim)}
+.has-cursor input{caret-color:transparent}
+.cursor{display:none;position:absolute;pointer-events:none;background:var(--acid);opacity:.85;animation:curBlink 1s steps(1) infinite}
+@keyframes curBlink{0%,55%{opacity:.85}56%,100%{opacity:0}}
+.search button{border:0;background:var(--acid);color:#172011;padding:0 17px;font-size:11px;font-weight:700}
+.search button:hover{background:#c0f28d}
+.search-hint{text-align:center;color:var(--dim);font-size:11px;margin-top:-8px}
+.subject-head{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;padding:26px 0 22px}
+.subject-label{font-size:11px;letter-spacing:1.4px;color:var(--muted);text-transform:uppercase;margin-bottom:8px}
+.subject-name{font:600 clamp(27px,4vw,39px)/1 "Pixelify Sans",sans-serif;letter-spacing:.1px}
+.subject-name span{color:var(--acid)}
+.subject-meta{display:flex;gap:18px;flex-wrap:wrap;margin-top:13px;color:var(--muted);font-size:11px}
+.subject-meta b{font-weight:600;color:var(--text);margin-left:5px}
+.address-list{font-size:clamp(18px,2vw,26px);line-height:1.5;overflow-wrap:anywhere}
+.section-meta{margin-top:9px;color:var(--dim);font-size:10px;line-height:1.5}
+.section-index{font-size:10px;text-transform:uppercase}
+.section-index.ok{color:var(--acid)}
+.section-index.error,.section-index.timeout{color:var(--amber)}
+.section-index.loading{color:var(--muted)}
+.subdomain-list{list-style:none;padding:0;margin:9px 0 0;max-height:360px;overflow:auto}
+.subdomain-list li{padding:8px 0;border-bottom:1px solid var(--line-soft);font:11px var(--mono);overflow-wrap:anywhere}
+.demo-stamp{border:1px solid #665638;color:var(--amber);padding:7px 9px;font-size:11px;letter-spacing:1px;text-transform:uppercase;white-space:nowrap}
+.layout{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(280px,.85fr);gap:28px}
+.main-col,.side-col{min-width:0}
+.section{margin-bottom:27px}
+.section-heading{display:flex;align-items:center;justify-content:space-between;gap:15px;border-bottom:1px solid var(--line);padding-bottom:10px;margin-bottom:0}
+.section-heading h2{margin:0;font:600 16px "Pixelify Sans",sans-serif;letter-spacing:.15px}
+.section-index{color:var(--dim);font:11px var(--mono)}
+.identity-block{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(180px,.7fr);border-bottom:1px solid var(--line)}
+.primary-fact{padding:19px 22px 20px 0;border-right:1px solid var(--line)}
+.fact-label{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:1.1px}
+.ip-address{font:600 clamp(21px,3vw,30px) var(--mono);letter-spacing:-1.2px;margin:13px 0 7px;color:var(--text)}
+.fact-foot{color:var(--muted);font-size:11px}
+.fact-foot .marker{color:var(--acid);margin-right:6px}
+.secondary-facts{display:grid;grid-template-columns:1fr 1fr}
+.secondary-fact{padding:18px 14px;border-bottom:1px solid var(--line-soft)}
+.secondary-fact:nth-child(odd){border-right:1px solid var(--line-soft)}
+.secondary-fact:nth-last-child(-n+2){border-bottom:0}
+.secondary-fact strong{display:block;font:600 17px var(--mono);margin-top:9px}
+.secondary-fact small{display:block;color:var(--muted);font-size:11px;margin-top:4px}
+.relationship{padding:17px 0 4px}
+.relationship-label{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:13px}
+.relation-track{display:grid;grid-template-columns:1fr 28px 1fr 28px 1fr;align-items:center}
+.node{border:1px solid var(--line);background:var(--surface);padding:12px 13px;min-width:0}
+.node small{display:block;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.9px}
+.node strong{display:block;font:11px var(--mono);margin-top:8px;overflow-wrap:anywhere}
+.connector{height:1px;background:#56674f;position:relative}
+.connector:after{content:"";position:absolute;right:0;top:-3px;width:6px;height:6px;border-top:1px solid #829779;border-right:1px solid #829779;transform:rotate(45deg)}
+.table-wrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:480px}
+th{text-align:left;padding:12px 10px;color:var(--dim);font-size:11px;text-transform:uppercase;letter-spacing:1px;font-weight:600;border-bottom:1px solid var(--line)}
+td{padding:13px 10px;border-bottom:1px solid var(--line-soft);font-size:11px;vertical-align:top}
+tr:last-child td{border-bottom:0}
+td.value{font:11px var(--mono);color:#cbd7cd;overflow-wrap:anywhere;max-width:330px}
+.record-type{font:600 11px var(--mono);color:var(--acid)}
+.ttl,.source{font:11px var(--mono);color:var(--muted);white-space:nowrap}
+.side-section{margin-bottom:25px}
+.side-heading{font:600 15px "Pixelify Sans",sans-serif;padding-bottom:10px;border-bottom:1px solid var(--line);margin:0 0 2px}
+.profile-list{margin:0}
+.profile-row{display:grid;grid-template-columns:105px minmax(0,1fr);gap:10px;padding:12px 0;border-bottom:1px solid var(--line-soft);font-size:11px}
+.profile-row dt{color:var(--muted)}
+.profile-row dd{margin:0;text-align:right;overflow-wrap:anywhere;color:var(--text)}
+.profile-row .quiet{color:var(--muted)}
+.evidence-item{display:grid;grid-template-columns:12px minmax(0,1fr);gap:10px;padding:12px 0;border-bottom:1px solid var(--line-soft)}
+.evidence-mark{width:6px;height:6px;background:var(--acid);margin-top:4px}
+.evidence-item strong{display:block;font-size:11px;font-weight:600;margin-bottom:5px}
+.evidence-item p{margin:0;color:var(--muted);font-size:11px;line-height:1.55}
+.evidence-time{display:block;color:var(--dim);font:11px var(--mono);margin-top:6px}
+.note{border-left:2px solid var(--acid-dim);padding:10px 12px;background:#111812;color:var(--muted);font-size:11px;line-height:1.6;margin-top:14px}
+.note b{color:var(--text);font-weight:600}
+.footer{border-top:1px solid var(--line);padding:17px 0 23px;display:flex;justify-content:space-between;gap:20px;color:var(--dim);font-size:11px}
+.footer-brand{font-family:"Pixelify Sans",sans-serif;color:var(--muted)}
+#notice{display:none;margin-top:12px;color:var(--amber);font-size:11px;line-height:1.5}
+@media(max-width:850px){
+ .shell{width:min(100% - 40px,720px)} 
+ .layout{grid-template-columns:1fr;gap:8px}.side-col{display:grid;grid-template-columns:1fr 1fr;gap:25px}
+}
+@media(max-width:580px){
+ .shell{width:calc(100% - 30px)}.topbar{height:60px;gap:14px}.brand{font-size:20px}.has-results .brand-text{display:none} .workspace{padding-top:23px}.page-title{font-size:25px}.subject-head{padding:22px 0 18px}
+ .subject-meta{gap:8px 13px}.demo-stamp{font-size:10px;padding:6px}
+ .identity-block{grid-template-columns:1fr}.primary-fact{border-right:0;border-bottom:1px solid var(--line);padding:17px 0}
+ .secondary-facts{grid-template-columns:1fr 1fr}.secondary-fact{padding:14px 10px}
+ .relation-track{grid-template-columns:1fr 15px 1fr 15px 1fr}.node{padding:10px 7px}.node strong{font-size:11px}
+ .side-col{grid-template-columns:1fr}.footer{flex-direction:column;gap:7px}
+}
+.top-search{display:flex}
+.has-results .top-status{display:none}
+.command-row.fade{opacity:.55}
+#notice{display:block}
+@media(max-width:580px){.top-search{display:flex;flex:1;height:34px;min-width:0}.top-search input{padding:0 8px;font-size:10px}.top-search button{padding:0 8px;font-size:9px}.has-results .brand-text{display:none}}
+</style>
