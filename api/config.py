@@ -19,8 +19,6 @@ def _csv_env(name: str, default: str) -> tuple[str, ...]:
 class Settings:
     cors_origins: tuple[str, ...] = _csv_env("CORS_ORIGINS", "http://localhost:5173")
     max_concurrent_lookups: int = int(os.getenv("MAX_CONCURRENT_LOOKUPS", "12"))
-    per_ip_requests_per_minute: int = int(os.getenv("RATE_LIMIT_PER_MINUTE", "30"))
-    refresh_requests_per_minute: int = int(os.getenv("REFRESH_LIMIT_PER_MINUTE", "3"))
     certspotter_api_key: str | None = os.getenv("CERTSPOTTER_API_KEY") or None
     max_provider_response_bytes: int = 2_000_000
 

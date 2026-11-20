@@ -3,11 +3,9 @@ from contextlib import asynccontextmanager
 
 import dns.asyncresolver
 import httpx
+from config import settings
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-
-from config import settings
-from core.ratelimit import LocalRateLimiter
 from routes.domain import router as domain_router
 
 
@@ -24,7 +22,6 @@ async def lifespan(app: FastAPI):
     app.state.dns_resolver.timeout = 4.0
     app.state.dns_resolver.lifetime = 5.0
     app.state.lookup_semaphore = asyncio.Semaphore(settings.max_concurrent_lookups)
-    app.state.rate_limiter = LocalRateLimiter()
     try:
         yield
     finally:

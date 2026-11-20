@@ -178,7 +178,7 @@ onBeforeUnmount(() => {
                   </div>
                 </div>
               </Transition>
-              <div v-if="sectionState('ip')" class="section-meta">{{ sectionState('ip').source }} · {{ displayDate(sectionState('ip').fetched_at) }}<span v-if="sectionState('ip').cached"> · cached</span></div>
+              <div v-if="sectionState('ip')" class="section-meta">{{ sectionState('ip').source }} · {{ displayDate(sectionState('ip').fetched_at) }}</div>
             </section>
 
             <section class="section">
@@ -197,7 +197,7 @@ onBeforeUnmount(() => {
                   </table>
                 </div>
               </Transition>
-              <div v-if="sectionState('dns')" class="section-meta">{{ sectionState('dns').source }} · {{ displayDate(sectionState('dns').fetched_at) }}<span v-if="sectionState('dns').cached"> · cached</span></div>
+              <div v-if="sectionState('dns')" class="section-meta">{{ sectionState('dns').source }} · {{ displayDate(sectionState('dns').fetched_at) }}</div>
             </section>
           </div>
 
@@ -215,7 +215,7 @@ onBeforeUnmount(() => {
                   <div v-for="status in sectionState('rdap').data.status || []" :key="status" class="profile-row"><dt>Status</dt><dd>{{ status }}</dd></div>
                 </dl>
               </Transition>
-              <div v-if="sectionState('rdap')" class="section-meta">{{ sectionState('rdap').source }} · {{ displayDate(sectionState('rdap').fetched_at) }}<span v-if="sectionState('rdap').cached"> · cached</span></div>
+              <div v-if="sectionState('rdap')" class="section-meta">{{ sectionState('rdap').source }} · {{ displayDate(sectionState('rdap').fetched_at) }}</div>
             </section>
 
             <section class="side-section">
@@ -232,7 +232,7 @@ onBeforeUnmount(() => {
                   <div class="fact-foot email-foot">Checks public DNS records only; a record’s presence doesn’t guarantee mail delivery.</div>
                 </div>
               </Transition>
-              <div v-if="sectionState('email_security')" class="section-meta">{{ sectionState('email_security').source }} · {{ displayDate(sectionState('email_security').fetched_at) }}<span v-if="sectionState('email_security').cached"> · cached</span></div>
+              <div v-if="sectionState('email_security')" class="section-meta">{{ sectionState('email_security').source }} · {{ displayDate(sectionState('email_security').fetched_at) }}</div>
             </section>
 
             <section class="side-section">
@@ -246,7 +246,7 @@ onBeforeUnmount(() => {
                   </ul>
                 </div>
               </Transition>
-              <div v-if="sectionState('subdomains')" class="section-meta">{{ sectionState('subdomains').source }} · {{ displayDate(sectionState('subdomains').fetched_at) }}<span v-if="sectionState('subdomains').cached"> · cached</span></div>
+              <div v-if="sectionState('subdomains')" class="section-meta">{{ sectionState('subdomains').source }} · {{ displayDate(sectionState('subdomains').fetched_at) }}</div>
             </section>
           </aside>
         </div>

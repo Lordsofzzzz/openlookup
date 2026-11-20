@@ -13,7 +13,6 @@ class ProviderResult(BaseModel):
     status: ProviderStatus
     source: str
     fetched_at: datetime
-    cached: bool = False
     data: dict[str, Any] = Field(default_factory=dict)
     message: str | None = None
 

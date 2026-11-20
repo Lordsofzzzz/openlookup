@@ -1,7 +1,6 @@
 from typing import Any
 
 import httpx
-
 from config import settings
 
 from .http import get_json

@@ -1,6 +1,6 @@
 # OpenLookup API
 
-Async, stateless API for passive DNS, email security, RDAP, certificate-transparency, and ASN lookups. It has no database. The in-memory cache and rate limiter are per process; use a shared Redis-backed implementation before running multiple API workers or instances.
+Async, stateless API for passive DNS, email security, RDAP, certificate-transparency, and ASN lookups. It has no database or application-level cache.
 
 ## Run locally
 
@@ -20,20 +20,18 @@ The API listens on `http://localhost:8000`. Interactive docs and the OpenAPI sch
 - `GET /api/health`
 - `GET /api/v1/domain/{name}` returns all sections in one JSON response.
 - `GET /api/v1/domain/{name}/stream` emits one `section` SSE event per completed provider and a final `done` event.
-- Both domain endpoints accept `?refresh=1`, which bypasses the section cache and uses a stricter rate limit.
+Every section has `section`, `status`, `source`, `fetched_at`, `data`, and an optional `message`. A failed provider returns its own error or timeout result.
 
-Every section has `section`, `status`, `source`, `fetched_at`, `cached`, `data`, and an optional `message`. A failed provider returns its own error or timeout result; successful sections are cached independently.
+## Data sources
 
-## Data sources and cache
-
-- DNS: configured recursive resolver via dnspython; A, AAAA, MX, NS, TXT, and CNAME records (5 minute cache).
-- Email security: SPF at the domain and DMARC at `_dmarc.<domain>` via the configured recursive resolver (5 minute cache).
-- Registration: IANA RDAP bootstrap and the selected registry endpoint (24 hour cache).
-- Subdomains: crt.sh with Certspotter fallback (1 hour cache).
-- IP/ASN: public A/AAAA records and Team Cymru's DNS-based ASN service (5 minute cache). Private and non-global addresses are excluded from ASN queries.
+- DNS: configured recursive resolver via dnspython; A, AAAA, MX, NS, TXT, and CNAME records.
+- Email security: SPF at the domain and DMARC at `_dmarc.<domain>` via the configured recursive resolver.
+- Registration: IANA RDAP bootstrap and the selected registry endpoint.
+- Subdomains: crt.sh with Certspotter fallback.
+- IP/ASN: public A/AAAA records and Team Cymru's DNS-based ASN service. Private and non-global addresses are excluded from ASN queries.
 
 Outbound HTTP requests use fixed provider hosts, bounded response sizes, timeouts, and do not follow redirects. The API never fetches a user-supplied URL or connects to the target host.
 
 ## Configuration
 
-Set `CORS_ORIGINS` to a comma-separated list of exact frontend origins in production. Keep `CERTSPOTTER_API_KEY` and other provider credentials in the API host environment; never put them in the web client. Rate limits and concurrency caps are process-local and should be replaced with shared infrastructure for a multi-instance deployment.
+Set `CORS_ORIGINS` to a comma-separated list of exact frontend origins in production. Keep `CERTSPOTTER_API_KEY` and other provider credentials in the API host environment; never put them in the web client. The lookup concurrency cap is process-local and should be coordinated across instances if needed.

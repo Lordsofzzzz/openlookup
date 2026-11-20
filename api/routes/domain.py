@@ -6,13 +6,10 @@ from typing import Any
 
 import dns.asyncresolver
 import httpx
-from fastapi import APIRouter, HTTPException, Query, Request
-from fastapi.responses import StreamingResponse
-
-from core.cache import section_cache
 from core.models import DomainLookupResponse, ProviderResult
-from core.ratelimit import LocalRateLimiter
 from core.validate import normalize_domain
+from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import StreamingResponse
 from providers import dns as dns_provider
 from providers import email_security as email_security_provider
 from providers import ip as ip_provider
@@ -40,13 +37,7 @@ async def _load_section(
     request: Request,
     domain: str,
     section: str,
-    refresh: bool,
 ) -> ProviderResult:
-    if not refresh:
-        cached = await section_cache.get(domain, section)
-        if cached is not None:
-            return cached
-
     client: httpx.AsyncClient = request.app.state.http_client
     resolver: dns.asyncresolver.Resolver = request.app.state.dns_resolver
     providers: dict[str, Callable[[], Awaitable[tuple[str, dict[str, Any]]]]] = {
@@ -66,10 +57,8 @@ async def _load_section(
             status="ok",
             source=source,
             fetched_at=fetched_at,
-            cached=False,
             data=data,
         )
-        await section_cache.set(domain, result)
         return result
     except (TimeoutError, httpx.TimeoutException):
         return ProviderResult(
@@ -98,19 +87,12 @@ def _domain_or_422(value: str) -> str:
         ) from exc
 
 
-async def _rate_limit(request: Request, refresh: bool) -> None:
-    limiter: LocalRateLimiter = request.app.state.rate_limiter
-    await limiter.check(request, refresh=refresh)
-
-
-async def _all_sections(
-    request: Request, domain: str, refresh: bool
-) -> dict[str, ProviderResult]:
+async def _all_sections(request: Request, domain: str) -> dict[str, ProviderResult]:
     semaphore: asyncio.Semaphore = request.app.state.lookup_semaphore
     async with semaphore:
         names = ("dns", "rdap", "subdomains", "ip", "email_security")
         results = await asyncio.gather(
-            *(_load_section(request, domain, section, refresh) for section in names)
+            *(_load_section(request, domain, section) for section in names)
         )
     return {result.section: result for result in results}
 
@@ -119,11 +101,9 @@ async def _all_sections(
 async def lookup_domain(
     name: str,
     request: Request,
-    refresh: bool = Query(default=False),
 ) -> DomainLookupResponse:
-    await _rate_limit(request, refresh)
     domain = _domain_or_422(name)
-    sections = await _all_sections(request, domain, refresh)
+    sections = await _all_sections(request, domain)
     return DomainLookupResponse(domain=domain, sections=sections)
 
 
@@ -135,9 +115,7 @@ def _sse(event: str, data: dict[str, Any]) -> str:
 async def stream_domain(
     name: str,
     request: Request,
-    refresh: bool = Query(default=False),
 ) -> StreamingResponse:
-    await _rate_limit(request, refresh)
     domain = _domain_or_422(name)
 
     async def events() -> AsyncIterator[str]:
@@ -145,7 +123,7 @@ async def stream_domain(
         async with semaphore:
             names = ("dns", "rdap", "subdomains", "ip", "email_security")
             tasks = [
-                asyncio.create_task(_load_section(request, domain, section, refresh))
+                asyncio.create_task(_load_section(request, domain, section))
                 for section in names
             ]
             try:
