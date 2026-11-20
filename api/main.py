@@ -3,9 +3,10 @@ from contextlib import asynccontextmanager
 
 import dns.asyncresolver
 import httpx
-from config import settings
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
+from config import settings
 from routes.domain import router as domain_router
 
 

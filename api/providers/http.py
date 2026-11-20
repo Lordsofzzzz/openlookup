@@ -2,6 +2,7 @@ import json
 from typing import Any
 
 import httpx
+
 from config import settings
 
 

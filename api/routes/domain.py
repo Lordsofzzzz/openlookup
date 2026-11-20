@@ -6,10 +6,11 @@ from typing import Any
 
 import dns.asyncresolver
 import httpx
-from core.models import DomainLookupResponse, ProviderResult
-from core.validate import normalize_domain
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
+
+from core.models import DomainLookupResponse, ProviderResult
+from core.validate import normalize_domain
 from providers import dns as dns_provider
 from providers import email_security as email_security_provider
 from providers import ip as ip_provider
