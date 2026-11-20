@@ -106,7 +106,13 @@ async def lookup(
     asn_records = await asyncio.gather(
         *(_asn_record(address, resolver) for address in public_addresses)
     )
+    seen: set[tuple[str, str]] = set()
+    networks: list[dict[str, str]] = []
+    for record in asn_records:
+        if record and (key := (record["asn"], record["prefix"])) not in seen:
+            seen.add(key)
+            networks.append(record)
     return "Team Cymru DNS", {
         "addresses": [str(address) for address in public_addresses],
-        "networks": [record for record in asn_records if record is not None],
+        "networks": networks,
     }

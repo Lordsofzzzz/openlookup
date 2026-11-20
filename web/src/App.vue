@@ -11,6 +11,12 @@ const cursorEl = ref(null)
 let removeInputListeners
 let eventSource
 const idle = computed(() => streamStatus.value === 'idle')
+const domainNotFound = computed(() => {
+  const dns = sections.value.dns
+  const rdap = sections.value.rdap
+  return (dns?.status === 'ok' && dns.data?.nxdomain === true)
+    || (rdap?.status === 'ok' && rdap.data?.registered === false)
+})
 const sectionNames = [
   { key: 'ip', title: 'Infrastructure' },
   { key: 'dns', title: 'DNS record set' },
@@ -73,6 +79,11 @@ function displayDate(value) {
   if (!value) return '—'
   const date = new Date(value)
   return Number.isNaN(date.getTime()) ? value : date.toLocaleString()
+}
+function dnsRecordValue(record) {
+  return record.type === 'MX' && /^0(?:\s+\.)?$/.test(record.value.trim())
+    ? 'No mail (null MX)'
+    : record.value
 }
 async function investigate() {
   const host = normalize(domain.value)
@@ -153,6 +164,7 @@ onBeforeUnmount(() => {
           </div>
           <div class="demo-stamp">Public data</div>
         </div>
+        <div v-if="domainNotFound" class="note" role="status">Domain not found.</div>
 
         <div class="layout">
           <div class="main-col">
@@ -160,7 +172,7 @@ onBeforeUnmount(() => {
               <div class="section-heading"><h2>Infrastructure</h2><span class="section-index" :class="sectionStatus('ip')">{{ sectionStatus('ip').toUpperCase() }}</span></div>
               <div v-if="sectionState('ip')?.message" class="note">{{ sectionState('ip').message }}</div>
               <Transition name="reveal">
-                <div v-if="sectionState('ip')?.data" class="identity-block">
+                <div v-if="sectionState('ip')?.status === 'ok'" class="identity-block">
                   <div class="primary-fact">
                     <div class="fact-label">Public IP addresses</div>
                     <div v-if="sectionState('ip').data.addresses?.length" class="ip-address address-list">
@@ -169,7 +181,7 @@ onBeforeUnmount(() => {
                     <div v-else class="fact-foot">No public IP addresses returned.</div>
                   </div>
                   <div class="secondary-facts">
-                    <div v-for="network in sectionState('ip').data.networks || []" :key="network.prefix" class="secondary-fact">
+                    <div v-for="network in sectionState('ip').data.networks || []" :key="`${network.asn}-${network.prefix}`" class="secondary-fact">
                       <div class="fact-label">{{ network.asn }}</div>
                       <strong>{{ network.name || 'ASN details' }}</strong>
                       <small>{{ network.prefix }} · {{ network.country }}</small>
@@ -185,14 +197,14 @@ onBeforeUnmount(() => {
               <div class="section-heading"><h2>DNS record set</h2><span class="section-index" :class="sectionStatus('dns')">{{ sectionStatus('dns').toUpperCase() }}</span></div>
               <div v-if="sectionState('dns')?.message" class="note">{{ sectionState('dns').message }}</div>
               <Transition name="reveal">
-                <div v-if="sectionState('dns')?.data" class="table-wrap">
+                <div v-if="sectionState('dns')?.status === 'ok'" class="table-wrap">
                   <table>
-                    <thead><tr><th>Type</th><th>Name</th><th>Record value</th><th>TTL</th></tr></thead>
+                    <thead><tr><th>Type</th><th>Record value</th><th>TTL</th></tr></thead>
                     <tbody>
                       <tr v-for="(record, index) in sectionState('dns').data.records" :key="`${record.type}-${record.value}-${index}`">
-                        <td class="record-type">{{ record.type }}</td><td>{{ record.name }}</td><td class="value">{{ record.value }}</td><td class="ttl">{{ record.ttl }}</td>
+                        <td class="record-type">{{ record.type }}</td><td class="value">{{ dnsRecordValue(record) }}</td><td class="ttl">{{ record.ttl }}</td>
                       </tr>
-                      <tr v-if="!sectionState('dns').data.records?.length"><td colspan="4" class="fact-foot">No DNS records returned.</td></tr>
+                      <tr v-if="!sectionState('dns').data.records?.length"><td colspan="3" class="fact-foot">No DNS records returned.</td></tr>
                     </tbody>
                   </table>
                 </div>
@@ -206,7 +218,7 @@ onBeforeUnmount(() => {
               <h2 class="side-heading">Registration profile <span class="section-index" :class="sectionStatus('rdap')">{{ sectionStatus('rdap').toUpperCase() }}</span></h2>
               <div v-if="sectionState('rdap')?.message" class="note">{{ sectionState('rdap').message }}</div>
               <Transition name="reveal">
-                <dl v-if="sectionState('rdap')?.data" class="profile-list">
+                <dl v-if="sectionState('rdap')?.status === 'ok'" class="profile-list">
                   <div class="profile-row"><dt>Registrar</dt><dd>{{ sectionState('rdap').data.registrar || '—' }}</dd></div>
                   <div class="profile-row nameservers-row"><dt>Nameservers</dt><dd><span v-for="server in sectionState('rdap').data.nameservers || []" :key="server">{{ server }}</span><span v-if="!sectionState('rdap').data.nameservers?.length">—</span></dd></div>
                   <div class="profile-row"><dt>Created</dt><dd>{{ displayDate(sectionState('rdap').data.created) }}</dd></div>
@@ -222,7 +234,7 @@ onBeforeUnmount(() => {
               <h2 class="side-heading">Email security <span class="section-index" :class="sectionStatus('email_security')">{{ sectionStatus('email_security').toUpperCase() }}</span></h2>
               <div v-if="sectionState('email_security')?.message" class="note">{{ sectionState('email_security').message }}</div>
               <Transition name="reveal">
-                <div v-if="sectionState('email_security')?.data">
+                <div v-if="sectionState('email_security')?.status === 'ok'">
                   <div v-for="kind in ['spf', 'dmarc']" :key="kind" class="email-policy">
                     <div class="email-policy-heading"><strong>{{ kind.toUpperCase() }}</strong><span :class="sectionState('email_security').data[kind].status">{{ sectionState('email_security').data[kind].status }}</span></div>
                     <p>{{ sectionState('email_security').data[kind].summary }}</p>
@@ -239,8 +251,8 @@ onBeforeUnmount(() => {
               <h2 class="side-heading">Subdomains <span class="section-index" :class="sectionStatus('subdomains')">{{ sectionStatus('subdomains').toUpperCase() }}</span></h2>
               <div v-if="sectionState('subdomains')?.message" class="note">{{ sectionState('subdomains').message }}</div>
               <Transition name="reveal">
-                <div v-if="sectionState('subdomains')?.data">
-                  <div class="fact-foot">{{ sectionState('subdomains').data.count }} found</div>
+                <div v-if="sectionState('subdomains')?.status === 'ok'">
+                  <div class="fact-foot">{{ sectionState('subdomains').data.truncated ? '1000+ found (list truncated)' : `${sectionState('subdomains').data.count} found` }}</div>
                   <ul class="subdomain-list">
                     <li v-for="name in sectionState('subdomains').data.subdomains" :key="name">{{ name }}</li>
                   </ul>
@@ -267,13 +279,13 @@ onBeforeUnmount(() => {
 *{box-sizing:border-box}
 html{scroll-behavior:smooth}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.brand-mark,.brand:hover .brand-mark{animation:none}.cursor{animation:none}}
-body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,Arial,sans-serif;font-size:14px;line-height:1.5;min-height:100vh}
+body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,Arial,sans-serif;font-size:14px;line-height:1.5;min-height:100vh;overflow-x:clip}
 a{color:inherit;text-decoration:none}
 button,input{font:inherit}
 button{cursor:pointer}
 a:focus-visible,button:focus-visible{outline:2px solid var(--acid);outline-offset:2px}
-.shell{width:min(1380px,100% - 64px);margin:0 auto}
-.topbar{height:68px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:28px}
+.shell{width:100%;margin:0}
+.topbar{height:68px;padding:0 32px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:28px}
 .brand{display:flex;align-items:center;gap:11px;white-space:nowrap;font:700 23px "Pixelify Sans",sans-serif;letter-spacing:.2px}
 .brand-mark{width:29px;height:29px;display:grid;place-items:center;background:var(--acid);color:#11180f;font:700 20px "Pixelify Sans";box-shadow:3px 3px 0 #4a6637;transition:transform .12s steps(2),box-shadow .12s steps(2);animation:markBlink 6s steps(1) infinite}
 .brand:hover .brand-mark{transform:translate(-2px,-2px);box-shadow:5px 5px 0 #4a6637}
@@ -284,19 +296,17 @@ a:focus-visible,button:focus-visible{outline:2px solid var(--acid);outline-offse
 .top-status{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:11px;white-space:nowrap}
 .status-square{width:7px;height:7px;background:var(--acid)}
 .shell{display:flex;flex-direction:column;min-height:100vh}
-.workspace{flex:1;padding:31px 0 60px}
+.workspace{flex:1;width:min(1380px,100% - 64px);margin:0 auto;padding:31px 0 60px}
 .workspace:not(.idle) .command-row{display:none}
 #results{transition:opacity .2s ease}
 #results.out{opacity:0}
-#results.in{animation:resIn .45s ease both}
-@keyframes resIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
 .reveal-enter-active{transition:opacity .32s ease,transform .32s ease}
 .reveal-enter-from{opacity:0;transform:translateY(7px)}
 @media(prefers-reduced-motion:reduce){.reveal-enter-active{transition:none}.reveal-enter-from{transform:none}}
 .command-row{transition:opacity .25s ease}
 .command-row.fade{opacity:0}
 .topbar{position:sticky;top:0;z-index:10;background:transparent}
-.topbar::before{content:"";position:absolute;z-index:-1;inset:0 calc((100vw - 100%)/-2);background:rgba(10,14,11,.72);border-bottom:1px solid var(--line);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+.topbar::before{content:"";position:absolute;z-index:-1;inset:0;background:rgba(10,14,11,.72);border-bottom:1px solid var(--line);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
 .topbar{border-bottom:0}
 .topbar .search{flex:0 1 440px;width:auto;height:38px;margin:0 0 0 auto}
 .topbar .search button{padding:0 14px}
@@ -312,7 +322,7 @@ a:focus-visible,button:focus-visible{outline:2px solid var(--acid);outline-offse
 .idle .search-hint{margin-top:-4px}
 .idle #results{display:none}
 .workspace.idle{position:relative}
-.workspace.idle::before{content:"";position:absolute;inset:0 -40px;z-index:0;pointer-events:none;background-image:linear-gradient(rgba(167,230,107,.09) 1px,transparent 1px),linear-gradient(90deg,rgba(167,230,107,.09) 1px,transparent 1px);background-size:32px 32px;background-position:center center;-webkit-mask-image:radial-gradient(ellipse 55% 50% at 50% 50%,#000 0,transparent 100%);mask-image:radial-gradient(ellipse 55% 50% at 50% 50%,#000 0,transparent 100%)}
+.workspace.idle::before{content:"";position:absolute;inset:0;z-index:0;pointer-events:none;background-image:linear-gradient(rgba(167,230,107,.09) 1px,transparent 1px),linear-gradient(90deg,rgba(167,230,107,.09) 1px,transparent 1px);background-size:32px 32px;background-position:center center;-webkit-mask-image:radial-gradient(ellipse 55% 50% at 50% 50%,#000 0,transparent 100%);mask-image:radial-gradient(ellipse 55% 50% at 50% 50%,#000 0,transparent 100%)}
 .workspace.idle>*{position:relative;z-index:1}
 body{position:relative}
 .shell{position:relative;z-index:1}
@@ -334,8 +344,9 @@ body.has-results::before{content:"";position:absolute;top:0;left:0;right:0;heigh
 .search button:hover{background:#c0f28d}
 .search-hint{text-align:center;color:var(--dim);font-size:11px;margin-top:-8px}
 .subject-head{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;padding:26px 0 22px}
+.subject-head>div:first-child{min-width:0}
 .subject-label{font-size:11px;letter-spacing:1.4px;color:var(--muted);text-transform:uppercase;margin-bottom:8px}
-.subject-name{font:600 clamp(27px,4vw,39px)/1 "Pixelify Sans",sans-serif;letter-spacing:.1px}
+.subject-name{font:600 clamp(27px,4vw,39px)/1 "Pixelify Sans",sans-serif;letter-spacing:.1px;overflow-wrap:anywhere}
 .subject-name span{color:var(--acid)}
 .subject-meta{display:flex;gap:18px;flex-wrap:wrap;margin-top:13px;color:var(--muted);font-size:11px}
 .subject-meta b{font-weight:600;color:var(--text);margin-left:5px}
@@ -357,26 +368,20 @@ body.has-results::before{content:"";position:absolute;top:0;left:0;right:0;heigh
 .identity-block{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(180px,.7fr);border-bottom:1px solid var(--line)}
 .primary-fact{padding:19px 22px 20px 0;border-right:1px solid var(--line)}
 .fact-label{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:1.1px}
-.ip-address{font:600 clamp(21px,3vw,30px) var(--mono);letter-spacing:-1.2px;margin:13px 0 7px;color:var(--text)}
+.ip-address{font:600 clamp(15px,2vw,22px) var(--mono);letter-spacing:-1.2px;margin:13px 0 7px;color:var(--text)}
 .fact-foot{color:var(--muted);font-size:11px}
 .fact-foot .marker{color:var(--acid);margin-right:6px}
-.secondary-facts{display:grid;grid-template-columns:1fr 1fr}
+.secondary-facts{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
 .secondary-fact{padding:18px 14px;border-bottom:1px solid var(--line-soft)}
 .secondary-fact:nth-child(odd){border-right:1px solid var(--line-soft)}
 .secondary-fact:nth-last-child(-n+2){border-bottom:0}
+.secondary-fact strong,.secondary-fact small{overflow-wrap:anywhere}
 .secondary-fact strong{display:block;font:600 17px var(--mono);margin-top:9px}
 .secondary-fact small{display:block;color:var(--muted);font-size:11px;margin-top:4px}
-.relationship{padding:17px 0 4px}
-.relationship-label{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:13px}
-.relation-track{display:grid;grid-template-columns:1fr 28px 1fr 28px 1fr;align-items:center}
-.node{border:1px solid var(--line);background:var(--surface);padding:12px 13px;min-width:0}
-.node small{display:block;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.9px}
-.node strong{display:block;font:11px var(--mono);margin-top:8px;overflow-wrap:anywhere}
-.connector{height:1px;background:#56674f;position:relative}
-.connector:after{content:"";position:absolute;right:0;top:-3px;width:6px;height:6px;border-top:1px solid #829779;border-right:1px solid #829779;transform:rotate(45deg)}
-.table-wrap{overflow-x:auto}
+.table-wrap{max-height:520px;overflow:auto}
 table{border-collapse:collapse;width:100%;min-width:480px}
 th{text-align:left;padding:12px 10px;color:var(--dim);font-size:11px;text-transform:uppercase;letter-spacing:1px;font-weight:600;border-bottom:1px solid var(--line)}
+thead th{position:sticky;top:0;background:var(--bg)}
 td{padding:13px 10px;border-bottom:1px solid var(--line-soft);font-size:11px;vertical-align:top}
 tr:last-child td{border-bottom:0}
 td.value{font:11px var(--mono);color:#cbd7cd;overflow-wrap:anywhere;max-width:330px}
@@ -398,27 +403,20 @@ td.value{font:11px var(--mono);color:#cbd7cd;overflow-wrap:anywhere;max-width:33
 .email-policy p{margin:7px 0;color:var(--muted);font-size:11px;line-height:1.55}
 .email-record{margin-top:6px;padding:8px;background:var(--surface);font:10px/1.5 var(--mono);overflow-wrap:anywhere;color:#cbd7cd}
 .email-foot{margin-top:10px;line-height:1.5}
-.profile-row .quiet{color:var(--muted)}
-.evidence-item{display:grid;grid-template-columns:12px minmax(0,1fr);gap:10px;padding:12px 0;border-bottom:1px solid var(--line-soft)}
-.evidence-mark{width:6px;height:6px;background:var(--acid);margin-top:4px}
-.evidence-item strong{display:block;font-size:11px;font-weight:600;margin-bottom:5px}
-.evidence-item p{margin:0;color:var(--muted);font-size:11px;line-height:1.55}
-.evidence-time{display:block;color:var(--dim);font:11px var(--mono);margin-top:6px}
 .note{border-left:2px solid var(--acid-dim);padding:10px 12px;background:#111812;color:var(--muted);font-size:11px;line-height:1.6;margin-top:14px}
 .note b{color:var(--text);font-weight:600}
-.footer{border-top:1px solid var(--line);padding:17px 0 23px;display:flex;justify-content:space-between;gap:20px;color:var(--dim);font-size:11px}
+.footer{border-top:1px solid var(--line);padding:17px 32px 23px;display:flex;justify-content:space-between;gap:20px;color:var(--dim);font-size:11px}
 .footer-brand{font-family:"Pixelify Sans",sans-serif;color:var(--muted)}
 #notice{display:none;margin-top:12px;color:var(--amber);font-size:11px;line-height:1.5}
 @media(max-width:850px){
- .shell{width:min(100% - 40px,720px)} 
+ .workspace{width:min(100% - 40px,720px)}.topbar,.footer{padding-inline:20px}
  .layout{grid-template-columns:1fr;gap:8px}.side-col{display:grid;grid-template-columns:1fr 1fr;gap:25px}
 }
 @media(max-width:580px){
- .shell{width:calc(100% - 30px)}.topbar{height:60px;gap:14px}.brand{font-size:20px}.has-results .brand-text{display:none} .workspace{padding-top:23px}.page-title{font-size:25px}.subject-head{padding:22px 0 18px}
+ .workspace{width:calc(100% - 30px);padding-top:23px}.topbar,.footer{padding-inline:15px}.topbar{height:60px;gap:14px}.brand{font-size:20px}.has-results .brand-text{display:none}.page-title{font-size:25px}.subject-head{padding:22px 0 18px}
  .subject-meta{gap:8px 13px}.demo-stamp{font-size:10px;padding:6px}
  .identity-block{grid-template-columns:1fr}.primary-fact{border-right:0;border-bottom:1px solid var(--line);padding:17px 0}
- .secondary-facts{grid-template-columns:1fr 1fr}.secondary-fact{padding:14px 10px}
- .relation-track{grid-template-columns:1fr 15px 1fr 15px 1fr}.node{padding:10px 7px}.node strong{font-size:11px}
+ .secondary-facts{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.secondary-fact{padding:14px 10px}
  .side-col{grid-template-columns:1fr}.footer{flex-direction:column;gap:7px}
 }
 .top-search{display:flex}
