@@ -34,7 +34,7 @@ jobs:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
       packages: write
     steps:
       - name: Check out
@@ -75,3 +75,16 @@ jobs:
           platforms: linux/arm64
           push: true
           tags: ${{ env.IMAGE }}-frontend:${{ env.TAG }}
+
+      - name: Update chart image tags
+        run: |
+          sed -i -E "s|(tag: ).*|\\1${TAG}|" charts/values.yaml
+          if git diff --quiet -- charts/values.yaml; then
+            echo "Chart image tags are already current"
+            exit 0
+          fi
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add charts/values.yaml
+          git commit -m "deploy: ${TAG}"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
