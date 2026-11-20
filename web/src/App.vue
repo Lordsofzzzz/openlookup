@@ -159,8 +159,8 @@ onBeforeUnmount(() => {
             <section class="section">
               <div class="section-heading"><h2>Infrastructure</h2><span class="section-index" :class="sectionStatus('ip')">{{ sectionStatus('ip').toUpperCase() }}</span></div>
               <div v-if="sectionState('ip')?.message" class="note">{{ sectionState('ip').message }}</div>
-              <template v-if="sectionState('ip')?.data">
-                <div class="identity-block">
+              <Transition name="reveal">
+                <div v-if="sectionState('ip')?.data" class="identity-block">
                   <div class="primary-fact">
                     <div class="fact-label">Public IP addresses</div>
                     <div v-if="sectionState('ip').data.addresses?.length" class="ip-address address-list">
@@ -177,24 +177,26 @@ onBeforeUnmount(() => {
                     <div v-if="!sectionState('ip').data.networks?.length" class="secondary-fact fact-foot">No ASN details returned.</div>
                   </div>
                 </div>
-              </template>
+              </Transition>
               <div v-if="sectionState('ip')" class="section-meta">{{ sectionState('ip').source }} · {{ displayDate(sectionState('ip').fetched_at) }}<span v-if="sectionState('ip').cached"> · cached</span></div>
             </section>
 
             <section class="section">
               <div class="section-heading"><h2>DNS record set</h2><span class="section-index" :class="sectionStatus('dns')">{{ sectionStatus('dns').toUpperCase() }}</span></div>
               <div v-if="sectionState('dns')?.message" class="note">{{ sectionState('dns').message }}</div>
-              <div v-if="sectionState('dns')?.data" class="table-wrap">
-                <table>
-                  <thead><tr><th>Type</th><th>Name</th><th>Record value</th><th>TTL</th></tr></thead>
-                  <tbody>
-                    <tr v-for="(record, index) in sectionState('dns').data.records" :key="`${record.type}-${record.value}-${index}`">
-                      <td class="record-type">{{ record.type }}</td><td>{{ record.name }}</td><td class="value">{{ record.value }}</td><td class="ttl">{{ record.ttl }}</td>
-                    </tr>
-                    <tr v-if="!sectionState('dns').data.records?.length"><td colspan="4" class="fact-foot">No DNS records returned.</td></tr>
-                  </tbody>
-                </table>
-              </div>
+              <Transition name="reveal">
+                <div v-if="sectionState('dns')?.data" class="table-wrap">
+                  <table>
+                    <thead><tr><th>Type</th><th>Name</th><th>Record value</th><th>TTL</th></tr></thead>
+                    <tbody>
+                      <tr v-for="(record, index) in sectionState('dns').data.records" :key="`${record.type}-${record.value}-${index}`">
+                        <td class="record-type">{{ record.type }}</td><td>{{ record.name }}</td><td class="value">{{ record.value }}</td><td class="ttl">{{ record.ttl }}</td>
+                      </tr>
+                      <tr v-if="!sectionState('dns').data.records?.length"><td colspan="4" class="fact-foot">No DNS records returned.</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </Transition>
               <div v-if="sectionState('dns')" class="section-meta">{{ sectionState('dns').source }} · {{ displayDate(sectionState('dns').fetched_at) }}<span v-if="sectionState('dns').cached"> · cached</span></div>
             </section>
           </div>
@@ -203,41 +205,47 @@ onBeforeUnmount(() => {
             <section class="side-section">
               <h2 class="side-heading">Registration profile <span class="section-index" :class="sectionStatus('rdap')">{{ sectionStatus('rdap').toUpperCase() }}</span></h2>
               <div v-if="sectionState('rdap')?.message" class="note">{{ sectionState('rdap').message }}</div>
-              <dl v-if="sectionState('rdap')?.data" class="profile-list">
-                <div class="profile-row"><dt>Registrar</dt><dd>{{ sectionState('rdap').data.registrar || '—' }}</dd></div>
-                <div class="profile-row nameservers-row"><dt>Nameservers</dt><dd><span v-for="server in sectionState('rdap').data.nameservers || []" :key="server">{{ server }}</span><span v-if="!sectionState('rdap').data.nameservers?.length">—</span></dd></div>
-                <div class="profile-row"><dt>Created</dt><dd>{{ displayDate(sectionState('rdap').data.created) }}</dd></div>
-                <div class="profile-row"><dt>Updated</dt><dd>{{ displayDate(sectionState('rdap').data.updated) }}</dd></div>
-                <div class="profile-row"><dt>Expires</dt><dd>{{ displayDate(sectionState('rdap').data.expires) }}</dd></div>
-                <div v-for="status in sectionState('rdap').data.status || []" :key="status" class="profile-row"><dt>Status</dt><dd>{{ status }}</dd></div>
-              </dl>
+              <Transition name="reveal">
+                <dl v-if="sectionState('rdap')?.data" class="profile-list">
+                  <div class="profile-row"><dt>Registrar</dt><dd>{{ sectionState('rdap').data.registrar || '—' }}</dd></div>
+                  <div class="profile-row nameservers-row"><dt>Nameservers</dt><dd><span v-for="server in sectionState('rdap').data.nameservers || []" :key="server">{{ server }}</span><span v-if="!sectionState('rdap').data.nameservers?.length">—</span></dd></div>
+                  <div class="profile-row"><dt>Created</dt><dd>{{ displayDate(sectionState('rdap').data.created) }}</dd></div>
+                  <div class="profile-row"><dt>Updated</dt><dd>{{ displayDate(sectionState('rdap').data.updated) }}</dd></div>
+                  <div class="profile-row"><dt>Expires</dt><dd>{{ displayDate(sectionState('rdap').data.expires) }}</dd></div>
+                  <div v-for="status in sectionState('rdap').data.status || []" :key="status" class="profile-row"><dt>Status</dt><dd>{{ status }}</dd></div>
+                </dl>
+              </Transition>
               <div v-if="sectionState('rdap')" class="section-meta">{{ sectionState('rdap').source }} · {{ displayDate(sectionState('rdap').fetched_at) }}<span v-if="sectionState('rdap').cached"> · cached</span></div>
             </section>
 
             <section class="side-section">
               <h2 class="side-heading">Email security <span class="section-index" :class="sectionStatus('email_security')">{{ sectionStatus('email_security').toUpperCase() }}</span></h2>
               <div v-if="sectionState('email_security')?.message" class="note">{{ sectionState('email_security').message }}</div>
-              <template v-if="sectionState('email_security')?.data">
-                <div v-for="kind in ['spf', 'dmarc']" :key="kind" class="email-policy">
-                  <div class="email-policy-heading"><strong>{{ kind.toUpperCase() }}</strong><span :class="sectionState('email_security').data[kind].status">{{ sectionState('email_security').data[kind].status }}</span></div>
-                  <p>{{ sectionState('email_security').data[kind].summary }}</p>
-                  <div v-for="record in sectionState('email_security').data[kind].records" :key="record" class="email-record">{{ record }}</div>
+              <Transition name="reveal">
+                <div v-if="sectionState('email_security')?.data">
+                  <div v-for="kind in ['spf', 'dmarc']" :key="kind" class="email-policy">
+                    <div class="email-policy-heading"><strong>{{ kind.toUpperCase() }}</strong><span :class="sectionState('email_security').data[kind].status">{{ sectionState('email_security').data[kind].status }}</span></div>
+                    <p>{{ sectionState('email_security').data[kind].summary }}</p>
+                    <div v-for="record in sectionState('email_security').data[kind].records" :key="record" class="email-record">{{ record }}</div>
+                  </div>
+                  <div v-for="error in sectionState('email_security').data.errors || []" :key="error" class="note">{{ error }}</div>
+                  <div class="fact-foot email-foot">Checks public DNS records only; a record’s presence doesn’t guarantee mail delivery.</div>
                 </div>
-                <div v-for="error in sectionState('email_security').data.errors || []" :key="error" class="note">{{ error }}</div>
-                <div class="fact-foot email-foot">Checks public DNS records only; a record’s presence doesn’t guarantee mail delivery.</div>
-              </template>
+              </Transition>
               <div v-if="sectionState('email_security')" class="section-meta">{{ sectionState('email_security').source }} · {{ displayDate(sectionState('email_security').fetched_at) }}<span v-if="sectionState('email_security').cached"> · cached</span></div>
             </section>
 
             <section class="side-section">
               <h2 class="side-heading">Subdomains <span class="section-index" :class="sectionStatus('subdomains')">{{ sectionStatus('subdomains').toUpperCase() }}</span></h2>
               <div v-if="sectionState('subdomains')?.message" class="note">{{ sectionState('subdomains').message }}</div>
-              <template v-if="sectionState('subdomains')?.data">
-                <div class="fact-foot">{{ sectionState('subdomains').data.count }} found</div>
-                <ul class="subdomain-list">
-                  <li v-for="name in sectionState('subdomains').data.subdomains" :key="name">{{ name }}</li>
-                </ul>
-              </template>
+              <Transition name="reveal">
+                <div v-if="sectionState('subdomains')?.data">
+                  <div class="fact-foot">{{ sectionState('subdomains').data.count }} found</div>
+                  <ul class="subdomain-list">
+                    <li v-for="name in sectionState('subdomains').data.subdomains" :key="name">{{ name }}</li>
+                  </ul>
+                </div>
+              </Transition>
               <div v-if="sectionState('subdomains')" class="section-meta">{{ sectionState('subdomains').source }} · {{ displayDate(sectionState('subdomains').fetched_at) }}<span v-if="sectionState('subdomains').cached"> · cached</span></div>
             </section>
           </aside>
@@ -282,6 +290,9 @@ a:focus-visible,button:focus-visible{outline:2px solid var(--acid);outline-offse
 #results.out{opacity:0}
 #results.in{animation:resIn .45s ease both}
 @keyframes resIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+.reveal-enter-active{transition:opacity .32s ease,transform .32s ease}
+.reveal-enter-from{opacity:0;transform:translateY(7px)}
+@media(prefers-reduced-motion:reduce){.reveal-enter-active{transition:none}.reveal-enter-from{transform:none}}
 .command-row{transition:opacity .25s ease}
 .command-row.fade{opacity:0}
 .topbar{position:sticky;top:0;z-index:10;background:transparent}
