@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: openlookup-api
+  labels:
+    app: openlookup-api
+spec:
+  replicas: {{ .Values.api.replicas }}
+  selector:
+    matchLabels:
+      app: openlookup-api
+  template:
+    metadata:
+      labels:
+        app: openlookup-api
+    spec:
+      containers:
+        - name: api
+          image: "{{ .Values.api.image.repository }}:{{ .Values.api.image.tag }}"
+          ports:
+            - name: http
+              containerPort: 8000
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: openlookup-api
+spec:
+  selector:
+    app: openlookup-api
+  ports:
+    - name: http
+      port: 8000
+      targetPort: http

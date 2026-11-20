@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: openlookup-web
+  labels:
+    app: openlookup-web
+spec:
+  replicas: {{ .Values.web.replicas }}
+  selector:
+    matchLabels:
+      app: openlookup-web
+  template:
+    metadata:
+      labels:
+        app: openlookup-web
+    spec:
+      containers:
+        - name: web
+          image: "{{ .Values.web.image.repository }}:{{ .Values.web.image.tag }}"
+          ports:
+            - name: http
+              containerPort: 80
+          env:
+            - name: API_UPSTREAM
+              value: http://openlookup-api:8000
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: openlookup-web
+spec:
+  selector:
+    app: openlookup-web
+  ports:
+    - name: http
+      port: 80
+      targetPort: http

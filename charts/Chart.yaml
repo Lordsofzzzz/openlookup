@@ -1,0 +1,6 @@
+apiVersion: v2
+name: openlookup
+description: OpenLookup API and web application
+type: application
+version: 0.1.0
+appVersion: "1.0.0"

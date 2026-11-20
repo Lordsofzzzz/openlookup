@@ -1,0 +1,11 @@
+api:
+  replicas: 1
+  image:
+    repository: ghcr.io/lordsofzzzz/openlookup-backend
+    tag: main-99ce148
+
+web:
+  replicas: 1
+  image:
+    repository: ghcr.io/lordsofzzzz/openlookup-frontend
+    tag: main-99ce148
