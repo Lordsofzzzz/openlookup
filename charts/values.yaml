@@ -9,3 +9,9 @@ web:
   image:
     repository: ghcr.io/lordsofzzzz/openlookup-frontend
     tag: main-890ccaa
+
+cloudflared:
+  enabled: true
+  replicas: 1
+  image: cloudflare/cloudflared:latest
+  tokenSecret: cloudflared-token
