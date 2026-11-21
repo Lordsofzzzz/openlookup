@@ -19,6 +19,7 @@ server {
     }
 
     location / {
+        access_log off;
         try_files $uri $uri/ /index.html;
     }
 }

@@ -117,6 +117,12 @@ onMounted(() => {
     mapObserver = new ResizeObserver(drawMap)
     if (mapEl.value?.parentElement) mapObserver.observe(mapEl.value.parentElement)
   }
+  window.addEventListener('popstate', handlePopState)
+  const sharedDomain = new URLSearchParams(window.location.search).get('domain')
+  if (sharedDomain) {
+    domain.value = sharedDomain
+    void investigate({ updateUrl: false })
+  }
 })
 watch(idle, async (isIdle) => {
   if (isIdle) {
@@ -128,7 +134,16 @@ function closeStream() {
   eventSource?.close()
   eventSource = null
 }
-function resetSearch() {
+function updateLookupUrl(host) {
+  const url = new URL(window.location.href)
+  url.searchParams.set('domain', host)
+  const nextUrl = `${url.pathname}?${url.searchParams.toString()}${url.hash}`
+  const currentUrl = `${url.pathname}${url.search}${url.hash}`
+  if (nextUrl !== currentUrl) {
+    window.history.pushState({ domain: host }, '', nextUrl)
+  }
+}
+function resetSearch(updateUrl = true) {
   closeStream()
   domain.value = ''
   resultDomain.value = ''
@@ -136,6 +151,20 @@ function resetSearch() {
   notice.value = ''
   streamStatus.value = 'idle'
   document.body.classList.remove('has-results')
+  if (updateUrl) {
+    const url = new URL(window.location.href)
+    url.searchParams.delete('domain')
+    window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`)
+  }
+}
+function handlePopState() {
+  const sharedDomain = new URLSearchParams(window.location.search).get('domain')
+  if (!sharedDomain) {
+    resetSearch(false)
+    return
+  }
+  domain.value = sharedDomain
+  void investigate({ updateUrl: false })
 }
 function sectionState(key) { return sections.value[key] ?? null }
 function sectionStatus(key) {
@@ -151,11 +180,12 @@ function dnsRecordValue(record) {
     ? 'No mail (null MX)'
     : record.value
 }
-async function investigate() {
+async function investigate({ updateUrl = true } = {}) {
   const host = normalize(domain.value)
   if (!host) { notice.value = 'Enter a domain to continue.'; inputEl.value?.focus(); return }
   if (!domainPattern.test(host)) { notice.value = `“${domain.value.trim()}” is not a valid domain.`; inputEl.value?.focus(); return }
 
+  if (updateUrl) updateLookupUrl(host)
   closeStream()
   sections.value = {}
   domain.value = host
@@ -191,6 +221,7 @@ onBeforeUnmount(() => {
   closeStream()
   removeInputListeners?.()
   mapObserver?.disconnect()
+  window.removeEventListener('popstate', handlePopState)
   document.removeEventListener('selectionchange', placeCursor)
 })
 </script>
@@ -198,8 +229,8 @@ onBeforeUnmount(() => {
 <template>
   <div class="shell">
     <header class="topbar">
-      <a class="brand" href="#" aria-label="OpenLookup home" @click.prevent="resetSearch"><span class="brand-mark"><svg width="18" height="18" viewBox="0 0 9 9" shape-rendering="crispEdges" aria-hidden="true"><rect x="1" y="0" width="4" height="1" fill="#11180f"/><rect x="0" y="1" width="1" height="1" fill="#11180f"/><rect x="5" y="1" width="1" height="1" fill="#11180f"/><rect x="0" y="2" width="1" height="1" fill="#11180f"/><rect x="5" y="2" width="1" height="1" fill="#11180f"/><rect x="2" y="2" width="2" height="1" fill="#4a6637"/><rect x="0" y="3" width="1" height="1" fill="#11180f"/><rect x="5" y="3" width="1" height="1" fill="#11180f"/><rect x="2" y="3" width="1" height="1" fill="#4a6637"/><rect x="0" y="4" width="1" height="1" fill="#11180f"/><rect x="5" y="4" width="1" height="1" fill="#11180f"/><rect x="1" y="5" width="4" height="1" fill="#11180f"/><rect x="6" y="5" width="1" height="1" fill="#11180f"/><rect x="6" y="6" width="2" height="1" fill="#11180f"/><rect x="7" y="7" width="2" height="1" fill="#11180f"/><rect x="8" y="8" width="1" height="1" fill="#11180f"/></svg></span><span class="brand-text">OpenLookup</span></a>
-      <form v-if="!idle" class="search top-search has-cursor" @submit.prevent="investigate">
+      <a class="brand" href="#" aria-label="OpenLookup home" @click.prevent="resetSearch()"><span class="brand-mark"><svg width="18" height="18" viewBox="0 0 9 9" shape-rendering="crispEdges" aria-hidden="true"><rect x="1" y="0" width="4" height="1" fill="#11180f"/><rect x="0" y="1" width="1" height="1" fill="#11180f"/><rect x="5" y="1" width="1" height="1" fill="#11180f"/><rect x="0" y="2" width="1" height="1" fill="#11180f"/><rect x="5" y="2" width="1" height="1" fill="#11180f"/><rect x="2" y="2" width="2" height="1" fill="#4a6637"/><rect x="0" y="3" width="1" height="1" fill="#11180f"/><rect x="5" y="3" width="1" height="1" fill="#11180f"/><rect x="2" y="3" width="1" height="1" fill="#4a6637"/><rect x="0" y="4" width="1" height="1" fill="#11180f"/><rect x="5" y="4" width="1" height="1" fill="#11180f"/><rect x="1" y="5" width="4" height="1" fill="#11180f"/><rect x="6" y="5" width="1" height="1" fill="#11180f"/><rect x="6" y="6" width="2" height="1" fill="#11180f"/><rect x="7" y="7" width="2" height="1" fill="#11180f"/><rect x="8" y="8" width="1" height="1" fill="#11180f"/></svg></span><span class="brand-text">OpenLookup</span></a>
+      <form v-if="!idle" class="search top-search has-cursor" @submit.prevent="investigate()">
         <input :ref="setInput" v-model="domain" type="text" :readonly="streamStatus === 'loading'" placeholder="Enter a domain" aria-label="Domain name" autocomplete="off" autocapitalize="none" spellcheck="false" inputmode="url" />
         <span ref="cursorEl" class="cursor" aria-hidden="true"></span>
         <button type="submit" :disabled="streamStatus === 'loading'">{{ streamStatus === 'loading' ? 'LOOKING UP…' : 'LOOK UP' }}</button>
@@ -220,7 +251,7 @@ onBeforeUnmount(() => {
           <h1 class="page-title">Domain investigation</h1>
           <div class="page-subtitle">Inspect public DNS, email policy, registration, certificate, and network data.</div>
         </div>
-        <form v-if="idle" class="search main-search has-cursor" @submit.prevent="investigate">
+        <form v-if="idle" class="search main-search has-cursor" @submit.prevent="investigate()">
           <input :ref="setInput" v-model="domain" type="text" :readonly="streamStatus === 'loading'" placeholder="Enter a domain" aria-label="Domain name" autocomplete="off" autocapitalize="none" spellcheck="false" inputmode="url" autofocus />
           <span ref="cursorEl" class="cursor" aria-hidden="true"></span>
           <button type="submit" :disabled="streamStatus === 'loading'">{{ streamStatus === 'loading' ? 'LOOKING UP…' : 'LOOK UP' }}</button>
