@@ -4,7 +4,6 @@ from collections.abc import AsyncIterator, Awaitable, Callable
 from datetime import UTC, datetime
 from typing import Any
 
-import dns.asyncresolver
 import httpx
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
@@ -16,6 +15,7 @@ from providers import email_security as email_security_provider
 from providers import ip as ip_provider
 from providers import rdap as rdap_provider
 from providers import subdomains as subdomains_provider
+from providers.dns_resolver import DNS_SOURCE, DNSResolverPool
 
 router = APIRouter(prefix="/api/v1", tags=["domain"])
 _SECTION_TIMEOUTS = {
@@ -26,11 +26,11 @@ _SECTION_TIMEOUTS = {
     "email_security": 6.0,
 }
 _SOURCE_NAMES = {
-    "dns": "system DNS resolver",
+    "dns": DNS_SOURCE,
     "rdap": "IANA RDAP bootstrap",
     "subdomains": "crt.sh / Certspotter",
-    "ip": "Team Cymru DNS",
-    "email_security": "system DNS resolver",
+    "ip": f"Team Cymru DNS via {DNS_SOURCE}",
+    "email_security": DNS_SOURCE,
 }
 
 
@@ -40,7 +40,7 @@ async def _load_section(
     section: str,
 ) -> ProviderResult:
     client: httpx.AsyncClient = request.app.state.http_client
-    resolver: dns.asyncresolver.Resolver = request.app.state.dns_resolver
+    resolver: DNSResolverPool = request.app.state.dns_resolver
     providers: dict[str, Callable[[], Awaitable[tuple[str, dict[str, Any]]]]] = {
         "dns": lambda: dns_provider.lookup(domain, resolver),
         "rdap": lambda: rdap_provider.lookup(domain, client),

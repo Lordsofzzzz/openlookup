@@ -1,27 +1,29 @@
 import asyncio
 from typing import Any
 
-import dns.asyncresolver
-import dns.exception
 import dns.resolver
+
+from .dns_resolver import DNS_SOURCE, DNSResolverPool
 
 
 async def _txt_records(
-    name: str, resolver: dns.asyncresolver.Resolver
-) -> list[str] | Exception:
-    try:
-        answer = await resolver.resolve(
-            name, "TXT", lifetime=4.0, raise_on_no_answer=False, search=False
-        )
-    except (dns.resolver.NoAnswer, dns.resolver.NXDOMAIN):
-        return []
-    except (dns.exception.Timeout, dns.resolver.NoNameservers) as exc:
-        return exc
-    if answer.rrset is None:
-        return []
-    return [
-        b"".join(record.strings).decode("utf-8", errors="replace") for record in answer
-    ]
+    name: str, resolver: DNSResolverPool
+) -> tuple[list[str] | None, bool]:
+    results = await resolver.resolve(name, "TXT")
+    records: dict[str, None] = {}
+    answered = False
+    failed = False
+    for answer in results:
+        if resolver.is_failure(answer):
+            failed = True
+            continue
+        answered = True
+        if isinstance(answer, dns.resolver.NXDOMAIN) or answer.rrset is None:
+            continue
+        for record in answer:
+            value = b"".join(record.strings).decode("utf-8", errors="replace")
+            records[value] = None
+    return (list(records) if answered else None), failed
 
 
 def _spf(records: list[str] | None) -> dict[str, Any]:
@@ -113,26 +115,22 @@ def _dmarc(records: list[str] | None) -> dict[str, Any]:
     }
 
 
-async def lookup(
-    domain: str, resolver: dns.asyncresolver.Resolver
-) -> tuple[str, dict[str, Any]]:
+async def lookup(domain: str, resolver: DNSResolverPool) -> tuple[str, dict[str, Any]]:
     spf_result, dmarc_result = await asyncio.gather(
         _txt_records(domain, resolver),
         _txt_records(f"_dmarc.{domain}", resolver),
     )
-    if isinstance(spf_result, Exception) and isinstance(dmarc_result, Exception):
+    if spf_result[0] is None and dmarc_result[0] is None:
         raise TimeoutError("Email security DNS queries did not respond.")
 
     errors = []
-    if isinstance(spf_result, Exception):
-        errors.append("SPF DNS query failed.")
-        spf_result = None
-    if isinstance(dmarc_result, Exception):
-        errors.append("DMARC DNS query failed.")
-        dmarc_result = None
+    if spf_result[0] is None or spf_result[1]:
+        errors.append("One or more SPF DNS resolvers failed.")
+    if dmarc_result[0] is None or dmarc_result[1]:
+        errors.append("One or more DMARC DNS resolvers failed.")
 
-    return "system DNS resolver", {
-        "spf": _spf(spf_result),
-        "dmarc": _dmarc(dmarc_result),
+    return DNS_SOURCE, {
+        "spf": _spf(spf_result[0]),
+        "dmarc": _dmarc(dmarc_result[0]),
         "errors": errors,
     }

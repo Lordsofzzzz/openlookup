@@ -1,12 +1,12 @@
 import asyncio
 from contextlib import asynccontextmanager
 
-import dns.asyncresolver
 import httpx
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from config import settings
+from providers.dns_resolver import DNSResolverPool
 from routes.domain import router as domain_router
 
 
@@ -19,9 +19,7 @@ async def lifespan(app: FastAPI):
         trust_env=False,
         headers={"User-Agent": "OpenLookup/1.0 (+passive public-data lookup)"},
     )
-    app.state.dns_resolver = dns.asyncresolver.Resolver(configure=True)
-    app.state.dns_resolver.timeout = 4.0
-    app.state.dns_resolver.lifetime = 5.0
+    app.state.dns_resolver = DNSResolverPool()
     app.state.lookup_semaphore = asyncio.Semaphore(settings.max_concurrent_lookups)
     try:
         yield
