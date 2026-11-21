@@ -48,11 +48,6 @@ async def _asn_record(
                 },
             )
 
-    names = await asyncio.gather(
-        *(_asn_name(asn, resolver) for asn, _ in records),
-    )
-    for record, name in zip(records.values(), names, strict=True):
-        record["name"] = name
     return list(records.values())
 
 
@@ -114,6 +109,13 @@ async def lookup(domain: str, resolver: DNSResolverPool) -> tuple[str, dict[str,
             if key not in seen:
                 seen.add(key)
                 networks.append(record)
+
+    asns = sorted({str(record["asn"]).removeprefix("AS") for record in networks})
+    names = await asyncio.gather(*(_asn_name(asn, resolver) for asn in asns))
+    names_by_asn = dict(zip(asns, names, strict=True))
+    for record in networks:
+        record["name"] = names_by_asn.get(str(record["asn"]).removeprefix("AS"))
+
     return f"Team Cymru DNS via {DNS_SOURCE}", {
         "addresses": [str(address) for address in public_addresses],
         "networks": networks,
