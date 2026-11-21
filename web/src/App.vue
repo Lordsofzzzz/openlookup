@@ -481,6 +481,7 @@ td.value{font:11px var(--mono);color:#cbd7cd;overflow-wrap:anywhere;max-width:33
 }
 @media(max-width:580px){
  .workspace{width:calc(100% - 30px);padding-top:23px}.topbar,.footer{padding-inline:15px}.topbar{height:60px;gap:14px}.brand{font-size:20px}.top-link{font-size:10px}.has-results .brand-text{display:none}.page-title{font-size:25px}.subject-head{padding:22px 0 18px}
+ .px-map{max-width:none;transform:translate(-50%,-50%) scale(1.2)}
  .subject-meta{gap:8px 13px}
  .identity-block{grid-template-columns:1fr}.primary-fact{border-right:0;border-bottom:1px solid var(--line);padding:17px 0}
  .secondary-facts{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.secondary-fact{padding:14px 10px}
