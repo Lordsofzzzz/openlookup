@@ -28,7 +28,7 @@ _SECTION_TIMEOUTS = {
 _SOURCE_NAMES = {
     "dns": DNS_SOURCE,
     "rdap": "IANA RDAP bootstrap",
-    "subdomains": "crt.sh / Certspotter",
+    "subdomains": "Cert Spotter",
     "ip": f"Team Cymru DNS via {DNS_SOURCE}",
     "email_security": DNS_SOURCE,
 }
