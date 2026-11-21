@@ -162,7 +162,6 @@ onBeforeUnmount(() => {
             <h2 class="subject-name">{{ resultDomain }}</h2>
             <div class="subject-meta">{{ streamStatus === 'loading' ? 'Lookup in progress' : streamStatus === 'complete' ? 'Lookup complete' : 'Lookup interrupted' }}</div>
           </div>
-          <div class="demo-stamp">Public data</div>
         </div>
         <div v-if="domainNotFound" class="note" role="status">Domain not found.</div>
 
@@ -190,7 +189,7 @@ onBeforeUnmount(() => {
                   </div>
                 </div>
               </Transition>
-              <div v-if="sectionState('ip')" class="section-meta">{{ sectionState('ip').source }} · {{ displayDate(sectionState('ip').fetched_at) }}</div>
+              <div v-if="sectionState('ip')" class="section-meta">{{ displayDate(sectionState('ip').fetched_at) }}</div>
             </section>
 
             <section class="section">
@@ -209,7 +208,7 @@ onBeforeUnmount(() => {
                   </table>
                 </div>
               </Transition>
-              <div v-if="sectionState('dns')" class="section-meta">{{ sectionState('dns').source }} · {{ displayDate(sectionState('dns').fetched_at) }}</div>
+              <div v-if="sectionState('dns')" class="section-meta">{{ displayDate(sectionState('dns').fetched_at) }}</div>
             </section>
           </div>
 
@@ -227,7 +226,7 @@ onBeforeUnmount(() => {
                   <div v-for="status in sectionState('rdap').data.status || []" :key="status" class="profile-row"><dt>Status</dt><dd>{{ status }}</dd></div>
                 </dl>
               </Transition>
-              <div v-if="sectionState('rdap')" class="section-meta">{{ sectionState('rdap').source }} · {{ displayDate(sectionState('rdap').fetched_at) }}</div>
+              <div v-if="sectionState('rdap')" class="section-meta">{{ displayDate(sectionState('rdap').fetched_at) }}</div>
             </section>
 
             <section class="side-section">
@@ -244,7 +243,7 @@ onBeforeUnmount(() => {
                   <div class="fact-foot email-foot">Checks public DNS records only; a record’s presence doesn’t guarantee mail delivery.</div>
                 </div>
               </Transition>
-              <div v-if="sectionState('email_security')" class="section-meta">{{ sectionState('email_security').source }} · {{ displayDate(sectionState('email_security').fetched_at) }}</div>
+              <div v-if="sectionState('email_security')" class="section-meta">{{ displayDate(sectionState('email_security').fetched_at) }}</div>
             </section>
 
             <section class="side-section">
@@ -258,7 +257,7 @@ onBeforeUnmount(() => {
                   </ul>
                 </div>
               </Transition>
-              <div v-if="sectionState('subdomains')" class="section-meta">{{ sectionState('subdomains').source }} · {{ displayDate(sectionState('subdomains').fetched_at) }}</div>
+              <div v-if="sectionState('subdomains')" class="section-meta">{{ displayDate(sectionState('subdomains').fetched_at) }}</div>
             </section>
           </aside>
         </div>
@@ -358,7 +357,6 @@ body.has-results::before{content:"";position:absolute;top:0;left:0;right:0;heigh
 .section-index.loading{color:var(--muted)}
 .subdomain-list{list-style:none;padding:0;margin:9px 0 0;max-height:360px;overflow:auto}
 .subdomain-list li{padding:8px 0;border-bottom:1px solid var(--line-soft);font:11px var(--mono);overflow-wrap:anywhere}
-.demo-stamp{border:1px solid #665638;color:var(--amber);padding:7px 9px;font-size:11px;letter-spacing:1px;text-transform:uppercase;white-space:nowrap}
 .layout{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(280px,.85fr);gap:28px}
 .main-col,.side-col{min-width:0}
 .section{margin-bottom:27px}
@@ -414,7 +412,7 @@ td.value{font:11px var(--mono);color:#cbd7cd;overflow-wrap:anywhere;max-width:33
 }
 @media(max-width:580px){
  .workspace{width:calc(100% - 30px);padding-top:23px}.topbar,.footer{padding-inline:15px}.topbar{height:60px;gap:14px}.brand{font-size:20px}.has-results .brand-text{display:none}.page-title{font-size:25px}.subject-head{padding:22px 0 18px}
- .subject-meta{gap:8px 13px}.demo-stamp{font-size:10px;padding:6px}
+ .subject-meta{gap:8px 13px}
  .identity-block{grid-template-columns:1fr}.primary-fact{border-right:0;border-bottom:1px solid var(--line);padding:17px 0}
  .secondary-facts{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.secondary-fact{padding:14px 10px}
  .side-col{grid-template-columns:1fr}.footer{flex-direction:column;gap:7px}
