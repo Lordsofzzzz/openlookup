@@ -1,5 +1,5 @@
 <script setup>
-import { computed, nextTick, onBeforeUnmount, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 const domain = ref('')
 const resultDomain = ref('')
@@ -8,8 +8,10 @@ const sections = ref({})
 const streamStatus = ref('idle')
 const inputEl = ref(null)
 const cursorEl = ref(null)
+const mapEl = ref(null)
 let removeInputListeners
 let eventSource
+let mapObserver
 const idle = computed(() => streamStatus.value === 'idle')
 const domainNotFound = computed(() => {
   const dns = sections.value.dns
@@ -24,6 +26,37 @@ const sectionNames = [
   { key: 'subdomains', title: 'Subdomains' },
   { key: 'email_security', title: 'Email security' },
 ]
+const COLS = 72
+const LAND = [
+  [[14, 21], [24, 31]],
+  [[10, 22], [23, 33], [50, 58], [62, 68]],
+  [[5, 22], [24, 33], [37, 42], [44, 71]],
+  [[2, 24], [26, 33], [34, 42], [43, 71]],
+  [[4, 24], [28, 30], [34, 42], [43, 71]],
+  [[8, 26], [34, 36], [38, 72]],
+  [[8, 26], [36, 71]],
+  [[8, 25], [36, 44], [45, 60], [62, 70]],
+  [[9, 25], [34, 47], [48, 70]],
+  [[10, 24], [34, 48], [50, 69]],
+  [[12, 23], [33, 48], [49, 68]],
+  [[14, 22], [33, 50], [51, 67]],
+  [[15, 21], [33, 52], [53, 56], [58, 66]],
+  [[16, 23], [33, 52], [53, 56], [58, 62]],
+  [[19, 28], [34, 50], [55, 56], [59, 60]],
+  [[20, 30], [36, 48], [56, 64]],
+  [[19, 31], [38, 47], [55, 57], [63, 66]],
+  [[19, 31], [38, 48], [56, 59], [64, 67]],
+  [[20, 31], [39, 48], [60, 64]],
+  [[20, 30], [39, 48], [59, 66]],
+  [[20, 29], [38, 47], [58, 67]],
+  [[20, 29], [39, 46], [58, 67]],
+  [[21, 29], [40, 46], [58, 67]],
+  [[21, 28], [41, 45], [59, 66]],
+  [[21, 27], [63, 65], [70, 71]],
+  [[22, 27], [70, 71]],
+  [[22, 26]],
+  [[23, 25]],
+]
 const domainPattern = /^(?=.{1,253}$)([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+(?:[a-z]{2,63}|xn--[a-z0-9-]{2,59})$/
 
 function normalize(value) {
@@ -31,6 +64,26 @@ function normalize(value) {
   if (!candidate || !/^[\p{L}\p{N}.-]+$/u.test(candidate)) return ''
   try { candidate = new URL(`http://${candidate}`).hostname.toLowerCase() } catch { return '' }
   return candidate
+}
+function drawMap() {
+  const canvas = mapEl.value
+  if (!canvas) return
+  const width = canvas.parentElement?.clientWidth || window.innerWidth
+  const cell = Math.max(6, Math.floor(Math.min(width, 1200) / COLS))
+  const dot = Math.max(2, cell - 3)
+  canvas.width = COLS * cell
+  canvas.height = LAND.length * cell
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return
+  ctx.imageSmoothingEnabled = false
+  LAND.forEach((spans, y) => {
+    for (const [from, to] of spans) {
+      for (let x = from; x <= Math.min(to, COLS - 1); x++) {
+        ctx.fillStyle = `rgba(163,227,90,${0.55 + ((x * 7 + y * 13) % 5) * 0.1})`
+        ctx.fillRect(x * cell, y * cell, dot, dot)
+      }
+    }
+  })
 }
 function placeCursor() {
   const input = inputEl.value, cursor = cursorEl.value
@@ -58,6 +111,19 @@ function setInput(el) {
   setTimeout(placeCursor, 50)
 }
 document.addEventListener('selectionchange', placeCursor)
+onMounted(() => {
+  drawMap()
+  if (typeof ResizeObserver !== 'undefined') {
+    mapObserver = new ResizeObserver(drawMap)
+    if (mapEl.value?.parentElement) mapObserver.observe(mapEl.value.parentElement)
+  }
+})
+watch(idle, async (isIdle) => {
+  if (isIdle) {
+    await nextTick()
+    drawMap()
+  }
+})
 function closeStream() {
   eventSource?.close()
   eventSource = null
@@ -124,6 +190,7 @@ async function investigate() {
 onBeforeUnmount(() => {
   closeStream()
   removeInputListeners?.()
+  mapObserver?.disconnect()
   document.removeEventListener('selectionchange', placeCursor)
 })
 </script>
@@ -137,10 +204,11 @@ onBeforeUnmount(() => {
         <span ref="cursorEl" class="cursor" aria-hidden="true"></span>
         <button type="submit" :disabled="streamStatus === 'loading'">{{ streamStatus === 'loading' ? 'LOOKING UP…' : 'LOOK UP' }}</button>
       </form>
-      <div class="top-status"><span class="status-square"></span> WORKSPACE / PUBLIC SOURCES</div>
+      <a v-if="idle" class="top-link" href="https://github.com/lordsofzzzz/openlookup" target="_blank" rel="noopener noreferrer">GitHub</a>
     </header>
 
     <main class="workspace" :class="{ idle }">
+      <canvas v-if="idle" ref="mapEl" class="px-map" aria-hidden="true"></canvas>
       <section class="command-row" aria-label="Domain lookup">
         <div>
           <div class="kicker">Passive reconnaissance workspace</div>
@@ -293,8 +361,8 @@ a:focus-visible,button:focus-visible{outline:2px solid var(--acid);outline-offse
 @keyframes markBlink{0%,94%,98%,100%{background:var(--acid)}96%{background:#4a6637}}
 .brand:hover .brand-mark{animation:markBounce .35s steps(3) 1}
 @keyframes markBounce{0%{transform:translate(0,0)}40%{transform:translate(-2px,-6px)}100%{transform:translate(-2px,-2px)}}
-.top-status{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:11px;white-space:nowrap}
-.status-square{width:7px;height:7px;background:var(--acid)}
+.top-link{margin-left:auto;color:var(--muted);font:11px var(--mono);letter-spacing:.5px;text-transform:uppercase;white-space:nowrap;transition:color .15s ease}
+.top-link:hover{color:var(--acid)}
 .shell{display:flex;flex-direction:column;min-height:100vh}
 .workspace{flex:1;width:min(1380px,100% - 64px);margin:0 auto;padding:31px 0 60px}
 .workspace:not(.idle) .command-row{display:none}
@@ -310,7 +378,6 @@ a:focus-visible,button:focus-visible{outline:2px solid var(--acid);outline-offse
 .topbar{border-bottom:0}
 .topbar .search{flex:0 1 440px;width:auto;height:38px;margin:0 0 0 auto}
 .topbar .search button{padding:0 14px}
-.has-results .top-status{display:none}
 .workspace.idle{display:flex;flex-direction:column;justify-content:center;padding:0 0 9vh}
 .idle .command-row{border-bottom:0;padding:0;gap:22px}
 .idle .command-row>div:first-child{text-align:center}
@@ -321,12 +388,11 @@ a:focus-visible,button:focus-visible{outline:2px solid var(--acid);outline-offse
 .idle .search button{padding:0 24px;font-size:14px}
 .idle .search-hint{margin-top:-4px}
 .idle #results{display:none}
-.workspace.idle{position:relative}
-.workspace.idle::before{content:"";position:absolute;inset:0;z-index:0;pointer-events:none;background-image:linear-gradient(rgba(167,230,107,.09) 1px,transparent 1px),linear-gradient(90deg,rgba(167,230,107,.09) 1px,transparent 1px);background-size:32px 32px;background-position:center center;-webkit-mask-image:radial-gradient(ellipse 55% 50% at 50% 50%,#000 0,transparent 100%);mask-image:radial-gradient(ellipse 55% 50% at 50% 50%,#000 0,transparent 100%)}
-.workspace.idle>*{position:relative;z-index:1}
+.workspace.idle{position:relative;overflow:hidden}
+.workspace.idle>*:not(.px-map){position:relative;z-index:1}
+.px-map{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);max-width:100%;opacity:.14;image-rendering:pixelated;pointer-events:none;z-index:0;-webkit-mask-image:radial-gradient(ellipse 60% 70% at 50% 50%,#000 40%,transparent 100%);mask-image:radial-gradient(ellipse 60% 70% at 50% 50%,#000 40%,transparent 100%)}
 body{position:relative}
 .shell{position:relative;z-index:1}
-body.has-results::before{content:"";position:absolute;top:0;left:0;right:0;height:520px;z-index:0;pointer-events:none;background-image:linear-gradient(rgba(167,230,107,.08) 1px,transparent 1px),linear-gradient(90deg,rgba(167,230,107,.08) 1px,transparent 1px);background-size:32px 32px;-webkit-mask-image:radial-gradient(ellipse 480px 400px at 0 0,#000,transparent 100%),radial-gradient(ellipse 480px 400px at 100% 0,#000,transparent 100%);mask-image:radial-gradient(ellipse 480px 400px at 0 0,#000,transparent 100%),radial-gradient(ellipse 480px 400px at 100% 0,#000,transparent 100%)}
 .idle #notice{text-align:center}
 .command-row{display:grid;grid-template-columns:1fr;justify-items:center;gap:17px;padding:5px 0 27px;border-bottom:1px solid var(--line)}
 .command-row>div:first-child{width:100%;text-align:left}
@@ -414,14 +480,13 @@ td.value{font:11px var(--mono);color:#cbd7cd;overflow-wrap:anywhere;max-width:33
  .layout{grid-template-columns:1fr;gap:8px}.side-col{display:grid;grid-template-columns:1fr 1fr;gap:25px}
 }
 @media(max-width:580px){
- .workspace{width:calc(100% - 30px);padding-top:23px}.topbar,.footer{padding-inline:15px}.topbar{height:60px;gap:14px}.brand{font-size:20px}.has-results .brand-text{display:none}.page-title{font-size:25px}.subject-head{padding:22px 0 18px}
+ .workspace{width:calc(100% - 30px);padding-top:23px}.topbar,.footer{padding-inline:15px}.topbar{height:60px;gap:14px}.brand{font-size:20px}.top-link{font-size:10px}.has-results .brand-text{display:none}.page-title{font-size:25px}.subject-head{padding:22px 0 18px}
  .subject-meta{gap:8px 13px}
  .identity-block{grid-template-columns:1fr}.primary-fact{border-right:0;border-bottom:1px solid var(--line);padding:17px 0}
  .secondary-facts{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.secondary-fact{padding:14px 10px}
  .side-col{grid-template-columns:1fr}.footer{flex-direction:column;gap:7px}
 }
 .top-search{display:flex}
-.has-results .top-status{display:none}
 .command-row.fade{opacity:.55}
 #notice{display:block}
 @media(max-width:580px){.top-search{display:flex;flex:1;height:34px;min-width:0}.top-search input{padding:0 8px;font-size:10px}.top-search button{padding:0 8px;font-size:11px}.has-results .brand-text{display:none}}
