@@ -237,6 +237,7 @@ onBeforeUnmount(() => {
                   <div v-for="kind in ['spf', 'dmarc']" :key="kind" class="email-policy">
                     <div class="email-policy-heading"><strong>{{ kind.toUpperCase() }}</strong><span :class="sectionState('email_security').data[kind].status">{{ sectionState('email_security').data[kind].status }}</span></div>
                     <p>{{ sectionState('email_security').data[kind].summary }}</p>
+                    <div v-if="kind === 'dmarc' && sectionState('email_security').data.dmarc.policy" class="email-policy-value"><span>Policy</span><strong>{{ sectionState('email_security').data.dmarc.policy }}</strong></div>
                     <div v-for="record in sectionState('email_security').data[kind].records" :key="record" class="email-record">{{ record }}</div>
                   </div>
                   <div v-for="error in sectionState('email_security').data.errors || []" :key="error" class="note">{{ error }}</div>
@@ -399,6 +400,8 @@ td.value{font:11px var(--mono);color:#cbd7cd;overflow-wrap:anywhere;max-width:33
 .email-policy-heading span.found{color:var(--acid)}
 .email-policy-heading span.missing,.email-policy-heading span.multiple,.email-policy-heading span.unavailable{color:var(--amber)}
 .email-policy p{margin:7px 0;color:var(--muted);font-size:11px;line-height:1.55}
+.email-policy-value{display:flex;justify-content:space-between;margin-top:8px;font:10px var(--mono);text-transform:uppercase;color:var(--muted)}
+.email-policy-value strong{color:var(--text)}
 .email-record{margin-top:6px;padding:8px;background:var(--surface);font:10px/1.5 var(--mono);overflow-wrap:anywhere;color:#cbd7cd}
 .email-foot{margin-top:10px;line-height:1.5}
 .note{border-left:2px solid var(--acid-dim);padding:10px 12px;background:#111812;color:var(--muted);font-size:11px;line-height:1.6;margin-top:14px}
