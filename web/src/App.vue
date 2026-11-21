@@ -204,7 +204,12 @@ onBeforeUnmount(() => {
         <span ref="cursorEl" class="cursor" aria-hidden="true"></span>
         <button type="submit" :disabled="streamStatus === 'loading'">{{ streamStatus === 'loading' ? 'LOOKING UP…' : 'LOOK UP' }}</button>
       </form>
-      <a v-if="idle" class="top-link" href="https://github.com/lordsofzzzz/openlookup" target="_blank" rel="noopener noreferrer">GitHub</a>
+      <a v-if="idle" class="gh-link" href="https://github.com/lordsofzzzz/openlookup" target="_blank" rel="noopener noreferrer" aria-label="OpenLookup on GitHub">
+        <svg viewBox="0 0 12 12" width="24" height="24" shape-rendering="crispEdges" aria-hidden="true">
+          <path class="gh-disc" d="M3 0h6v1h-6z M2 1h8v1h-8z M1 2h10v1h-10z M0 3h12v6h-12z M1 9h10v1h-10z M2 10h8v1h-8z M3 11h6v1h-6z" />
+          <path class="gh-cat" d="M4 2h1v2h-1z M7 2h1v2h-1z M3 4h6v3h-6z M2 7h1v1h-1z M4 7h4v1h-4z M3 8h5v1h-5z M4 9h4v3h-4z" />
+        </svg>
+      </a>
     </header>
 
     <main class="workspace" :class="{ idle }">
@@ -361,8 +366,13 @@ a:focus-visible,button:focus-visible{outline:2px solid var(--acid);outline-offse
 @keyframes markBlink{0%,94%,98%,100%{background:var(--acid)}96%{background:#4a6637}}
 .brand:hover .brand-mark{animation:markBounce .35s steps(3) 1}
 @keyframes markBounce{0%{transform:translate(0,0)}40%{transform:translate(-2px,-6px)}100%{transform:translate(-2px,-2px)}}
-.top-link{margin-left:auto;color:var(--muted);font:11px var(--mono);letter-spacing:.5px;text-transform:uppercase;white-space:nowrap;transition:color .15s ease}
-.top-link:hover{color:var(--acid)}
+.gh-link{display:inline-flex;align-items:center;justify-content:center;min-width:32px;min-height:32px;margin-left:auto;padding:2px;--gh-disc:#a3e35a;--gh-cat:#0a0e0b;transition:transform .12s ease,filter .12s ease}
+.gh-link svg{display:block;image-rendering:pixelated}
+.gh-disc{fill:var(--gh-disc)}
+.gh-cat{fill:var(--gh-cat)}
+.gh-link:hover,.gh-link:focus-visible{--gh-disc:#b6ee74;transform:translate(-1px,-1px);filter:drop-shadow(1px 1px 0 #4f7a2a)}
+.gh-link:active{--gh-disc:#8fcf47;transform:translate(1px,1px);filter:none}
+.gh-link:focus-visible{outline:2px solid #e8f1ea;outline-offset:3px}
 .shell{display:flex;flex-direction:column;min-height:100vh}
 .workspace{flex:1;width:min(1380px,100% - 64px);margin:0 auto;padding:31px 0 60px}
 .workspace:not(.idle) .command-row{display:none}
@@ -480,7 +490,7 @@ td.value{font:11px var(--mono);color:#cbd7cd;overflow-wrap:anywhere;max-width:33
  .layout{grid-template-columns:1fr;gap:8px}.side-col{display:grid;grid-template-columns:1fr 1fr;gap:25px}
 }
 @media(max-width:580px){
- .workspace{width:calc(100% - 30px);padding-top:23px}.topbar,.footer{padding-inline:15px}.topbar{height:60px;gap:14px}.brand{font-size:20px}.top-link{font-size:10px}.has-results .brand-text{display:none}.page-title{font-size:25px}.subject-head{padding:22px 0 18px}
+ .workspace{width:calc(100% - 30px);padding-top:23px}.topbar,.footer{padding-inline:15px}.topbar{height:60px;gap:14px}.brand{font-size:20px}.has-results .brand-text{display:none}.page-title{font-size:25px}.subject-head{padding:22px 0 18px}
  .px-map{max-width:none;transform:translate(-50%,-50%) scale(1.2)}
  .subject-meta{gap:8px 13px}
  .identity-block{grid-template-columns:1fr}.primary-fact{border-right:0;border-bottom:1px solid var(--line);padding:17px 0}
