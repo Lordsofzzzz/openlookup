@@ -22,7 +22,7 @@ _SECTION_TIMEOUTS = {
     "dns": 6.0,
     "rdap": 8.0,
     "subdomains": 12.0,
-    "ip": 6.0,
+    "ip": 12.0,
     "email_security": 6.0,
 }
 _SOURCE_NAMES = {
