@@ -136,9 +136,9 @@ function closeStream() {
 }
 function updateLookupUrl(host) {
   const url = new URL(window.location.href)
-  url.searchParams.set('domain', host)
-  const nextUrl = `${url.pathname}?${url.searchParams.toString()}${url.hash}`
   const currentUrl = `${url.pathname}${url.search}${url.hash}`
+  url.searchParams.set('domain', host)
+  const nextUrl = `${url.pathname}${url.search}${url.hash}`
   if (nextUrl !== currentUrl) {
     window.history.pushState({ domain: host }, '', nextUrl)
   }
