@@ -38,7 +38,7 @@ function placeCursor() {
   const styles = getComputedStyle(input), canvas = document.createElement('canvas'), ctx = canvas.getContext('2d')
   ctx.font = `${styles.fontStyle} ${styles.fontWeight} ${styles.fontSize} ${styles.fontFamily}`
   const x = input.offsetLeft + parseFloat(styles.paddingLeft) + ctx.measureText(input.value.slice(0, input.selectionStart || 0)).width - input.scrollLeft
-  const height = Math.round(parseFloat(styles.fontSize) * 1.3), width = Math.max(6, Math.round(ctx.measureText('0').width))
+  const height = Math.round(parseFloat(styles.fontSize) * 1.3), width = Math.max(6, Math.round(ctx.measureText('0').width * 0.75))
   if (x < input.offsetLeft || x > input.offsetLeft + input.clientWidth - width) { cursor.style.display = 'none'; return }
   cursor.style.display = 'block'; cursor.style.left = `${Math.round(x)}px`; cursor.style.top = `${Math.round(input.offsetTop + (input.offsetHeight - height) / 2)}px`; cursor.style.width = `${width}px`; cursor.style.height = `${height}px`
 }
@@ -135,7 +135,7 @@ onBeforeUnmount(() => {
       <form v-if="!idle" class="search top-search has-cursor" @submit.prevent="investigate">
         <input :ref="setInput" v-model="domain" type="text" :readonly="streamStatus === 'loading'" placeholder="Enter a domain" aria-label="Domain name" autocomplete="off" autocapitalize="none" spellcheck="false" inputmode="url" />
         <span ref="cursorEl" class="cursor" aria-hidden="true"></span>
-        <button type="submit" :disabled="streamStatus === 'loading'">{{ streamStatus === 'loading' ? 'LOOKING UP…' : 'LOOK UP ↗' }}</button>
+        <button type="submit" :disabled="streamStatus === 'loading'">{{ streamStatus === 'loading' ? 'LOOKING UP…' : 'LOOK UP' }}</button>
       </form>
       <div class="top-status"><span class="status-square"></span> WORKSPACE / PUBLIC SOURCES</div>
     </header>
@@ -150,7 +150,7 @@ onBeforeUnmount(() => {
         <form v-if="idle" class="search main-search has-cursor" @submit.prevent="investigate">
           <input :ref="setInput" v-model="domain" type="text" :readonly="streamStatus === 'loading'" placeholder="Enter a domain" aria-label="Domain name" autocomplete="off" autocapitalize="none" spellcheck="false" inputmode="url" autofocus />
           <span ref="cursorEl" class="cursor" aria-hidden="true"></span>
-          <button type="submit" :disabled="streamStatus === 'loading'">{{ streamStatus === 'loading' ? 'LOOKING UP…' : 'LOOK UP ↗' }}</button>
+          <button type="submit" :disabled="streamStatus === 'loading'">{{ streamStatus === 'loading' ? 'LOOKING UP…' : 'LOOK UP' }}</button>
         </form>
         <div class="search-hint">PUBLIC SOURCES ONLY · NO ACTIVE PROBING</div>
       </section>
@@ -318,7 +318,7 @@ a:focus-visible,button:focus-visible{outline:2px solid var(--acid);outline-offse
 .idle .page-subtitle{font-size:14px}
 .idle .search{width:min(640px,100%);height:54px}
 .idle .search input{font-size:14px}
-.idle .search button{padding:0 24px;font-size:12px}
+.idle .search button{padding:0 24px;font-size:14px}
 .idle .search-hint{margin-top:-4px}
 .idle #results{display:none}
 .workspace.idle{position:relative}
@@ -333,14 +333,14 @@ body.has-results::before{content:"";position:absolute;top:0;left:0;right:0;heigh
 .kicker,.eyebrow{font-size:11px;text-transform:uppercase;letter-spacing:1.7px;color:var(--acid);font-weight:700}
 .page-title{font:600 29px/1.15 "Pixelify Sans",sans-serif;margin:8px 0 5px}
 .page-subtitle{color:var(--muted);font-size:12px;line-height:1.6}
-.search{position:relative;display:flex;min-width:0;width:min(560px,100%);justify-self:center;border:1px solid #435441;background:#0d130f;height:42px}
+.search{position:relative;display:flex;min-width:0;width:min(560px,100%);justify-self:center;border:1px solid #435441;border-radius:4px;overflow:hidden;background:#0d130f;height:42px}
 .search:focus-within{border-color:var(--acid)}
 .search input{min-width:0;flex:1;background:transparent;border:0;outline:0;color:var(--text);padding:0 13px;font-size:12px}
 .search input::placeholder{color:var(--dim)}
 .has-cursor input{caret-color:transparent}
 .cursor{display:none;position:absolute;pointer-events:none;background:var(--acid);opacity:.85;animation:curBlink 1s steps(1) infinite}
 @keyframes curBlink{0%,55%{opacity:.85}56%,100%{opacity:0}}
-.search button{border:0;background:var(--acid);color:#172011;padding:0 17px;font-size:11px;font-weight:700}
+.search button{border:0;background:var(--acid);color:#172011;padding:0 17px;font:700 13px "Pixelify Sans",sans-serif;letter-spacing:.3px}
 .search button:hover{background:#c0f28d}
 .search-hint{text-align:center;color:var(--dim);font-size:11px;margin-top:-8px}
 .subject-head{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;padding:26px 0 22px}
@@ -424,5 +424,5 @@ td.value{font:11px var(--mono);color:#cbd7cd;overflow-wrap:anywhere;max-width:33
 .has-results .top-status{display:none}
 .command-row.fade{opacity:.55}
 #notice{display:block}
-@media(max-width:580px){.top-search{display:flex;flex:1;height:34px;min-width:0}.top-search input{padding:0 8px;font-size:10px}.top-search button{padding:0 8px;font-size:9px}.has-results .brand-text{display:none}}
+@media(max-width:580px){.top-search{display:flex;flex:1;height:34px;min-width:0}.top-search input{padding:0 8px;font-size:10px}.top-search button{padding:0 8px;font-size:11px}.has-results .brand-text{display:none}}
 </style>
