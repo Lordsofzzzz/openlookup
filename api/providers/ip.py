@@ -113,13 +113,23 @@ async def lookup(domain: str, resolver: DNSResolverPool) -> tuple[str, dict[str,
     )
     seen: set[tuple[str, str]] = set()
     networks: list[dict[str, str | None]] = []
-    for records in asn_results:
+    address_asns: list[dict[str, Any]] = []
+    for address, records in zip(public_addresses, asn_results, strict=True):
+        asns: dict[str, dict[str, str | None]] = {}
         for record in records:
+            asn = str(record["asn"])
+            existing_asn = asns.get(asn)
+            if existing_asn is None or (
+                existing_asn["name"] is None and record["name"] is not None
+            ):
+                asns[asn] = {"asn": asn, "name": record["name"]}
             key = (str(record["asn"]), str(record["prefix"]))
             if key not in seen:
                 seen.add(key)
                 networks.append(record)
+        address_asns.append({"ip": str(address), "asns": list(asns.values())})
     return f"Team Cymru DNS via {DNS_SOURCE}", {
         "addresses": [str(address) for address in public_addresses],
+        "address_asns": address_asns,
         "networks": networks,
     }

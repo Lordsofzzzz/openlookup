@@ -23,17 +23,26 @@ defineEmits(['retry'])
                   <div class="primary-fact">
                     <div class="fact-label">Public IP addresses</div>
                     <div v-if="sections.ip.data.addresses?.length" class="ip-address address-list">
-                      <div v-for="address in sections.ip.data.addresses" :key="address">{{ address }}</div>
+                      <div v-for="address in sections.ip.data.addresses" :key="address" class="address-entry">
+                        <span class="address-value">{{ address }}</span>
+                        <span v-for="network in sections.ip.data.address_asns?.find(item => item.ip === address)?.asns || []" :key="network.asn" class="address-asn">
+                          <span class="asn-number">{{ network.asn }}</span>
+                          <span v-if="network.name" class="asn-name">{{ network.name }}</span>
+                        </span>
+                      </div>
                     </div>
                     <div v-else class="fact-foot">No public IP addresses returned.</div>
                   </div>
                   <div class="secondary-facts">
+                    <div class="network-ranges-heading">Network ranges</div>
                     <div v-for="network in sections.ip.data.networks || []" :key="`${network.asn}-${network.prefix}`" class="secondary-fact">
-                      <div class="fact-label">{{ network.asn }}</div>
-                      <strong>{{ network.name || 'ASN details' }}</strong>
-                      <small>{{ network.prefix }} · {{ network.country }}</small>
+                      <strong>{{ network.prefix }}</strong>
+                      <div class="network-range-meta">
+                        <span>{{ network.country }}</span>
+                        <span v-if="network.allocated">Allocated {{ network.allocated }}</span>
+                      </div>
                     </div>
-                    <div v-if="!sections.ip.data.networks?.length" class="secondary-fact fact-foot">No ASN details returned.</div>
+                    <div v-if="!sections.ip.data.networks?.length" class="secondary-fact fact-foot">No network ranges returned.</div>
                   </div>
                 </div>
               </Transition>

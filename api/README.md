@@ -30,7 +30,7 @@ Every section has `section`, `status`, `source`, `fetched_at`, `data`, a `retrya
 - Email security: SPF, DMARC, MTA-STS, and TLS-RPT TXT records via the configured recursive resolver.
 - Registration: IANA RDAP bootstrap and the selected registry endpoint.
 - Subdomains: Cert Spotter.
-- IP/ASN: public A/AAAA records and Team Cymru's DNS-based ASN service. Private and non-global addresses are excluded from ASN queries.
+- IP/ASN: public A/AAAA records and Team Cymru's DNS-based ASN service. Each IP includes its associated ASNs and network names when available; grouped network details remain available. Private and non-global addresses are excluded from ASN queries.
 - Exposure: [Shodan InternetDB](https://internetdb.shodan.io/) returns open ports, software (CPE), tags, and CVEs it has recorded for each public IP (first 10 addresses). No API key is needed. The API sends only the resolved public IP addresses to Shodan, never the target host. InternetDB is free for non-commercial use only, so check its terms before offering OpenLookup commercially. Its data can be stale, and its CVE list is inferred from software versions, so treat it as a lead, not a confirmed finding.
 
 Outbound HTTP requests use fixed provider hosts, bounded response sizes, timeouts, and do not follow redirects. The API never fetches a user-supplied URL or connects to the target host.
