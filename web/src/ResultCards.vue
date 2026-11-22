@@ -41,6 +41,39 @@ defineEmits(['retry'])
             </section>
 
             <section class="section">
+              <div class="section-heading"><h2>Exposure</h2><SectionRetry :status="statusFor('exposure')" :pending="statusFor('exposure') === 'loading' || !!retries.exposure" :error="retryErrors.exposure" @retry="$emit('retry', 'exposure')" /></div>
+              <div v-if="sections.exposure?.message" class="note">{{ sections.exposure.message }}</div>
+              <Transition name="reveal">
+                <div v-if="sections.exposure?.status === 'ok'" class="exposure-list">
+                  <div v-for="host in sections.exposure.data.hosts" :key="host.ip" class="exposure-host">
+                    <div class="exposure-head">
+                      <span class="exposure-ip">{{ host.ip }}</span>
+                      <span v-if="host.tags.length" class="exposure-tags">{{ host.tags.join(' · ') }}</span>
+                    </div>
+                    <template v-if="host.found">
+                      <div class="exposure-details">
+                        <div v-if="host.ports.length" class="exposure-row"><span class="exposure-label">OPEN PORTS</span><span class="exposure-values ports"><span v-for="port in host.ports" :key="port">{{ port }}</span></span></div>
+                        <div v-if="host.cpes.length" class="exposure-row"><span class="exposure-label">SOFTWARE</span><span class="exposure-values"><span v-for="cpe in host.cpes" :key="cpe" class="exposure-line">{{ cpe.replace(/^cpe:\//, '') }}</span></span></div>
+                        <div v-if="host.hostnames.length" class="exposure-row"><span class="exposure-label">HOSTNAMES</span><span class="exposure-values"><span v-for="name in host.hostnames" :key="name" class="exposure-line">{{ name }}</span></span></div>
+                        <div v-if="host.vulns.length" class="exposure-row exposure-vulns"><span class="exposure-label">REPORTED CVEs</span><span class="exposure-values"><a v-for="cve in host.vulns.slice(0, 3)" :key="cve" :href="`https://nvd.nist.gov/vuln/detail/${cve}`" target="_blank" rel="noopener noreferrer">{{ cve }}</a><details v-if="host.vulns.length > 3" class="exposure-more">
+                          <summary><span class="exposure-show">Show all reported CVEs ({{ host.vulns.length }})</span><span class="exposure-hide">Show fewer CVEs</span></summary>
+                          <div class="exposure-extra"><a v-for="cve in host.vulns.slice(3)" :key="cve" :href="`https://nvd.nist.gov/vuln/detail/${cve}`" target="_blank" rel="noopener noreferrer">{{ cve }}</a></div>
+                        </details></span></div>
+                        <div v-if="!host.ports.length && !host.cpes.length && !host.vulns.length" class="fact-foot">No ports or software listed.</div>
+                      </div>
+                    </template>
+                    <div v-else class="exposure-empty">No exposure data indexed for this address.</div>
+                  </div>
+                  <div v-if="!sections.exposure.data.hosts.length" class="fact-foot exposure-foot">No public IP addresses to check.</div>
+                  <div v-if="sections.exposure.data.truncated" class="fact-foot exposure-foot">Showing the first 10 addresses.</div>
+                  <div v-for="error in sections.exposure.data.errors || []" :key="error" class="note">{{ error }}</div>
+                  <div class="fact-foot exposure-foot">Previously observed data. Reported CVEs may be unconfirmed.</div>
+                </div>
+              </Transition>
+              <div v-if="sections.exposure" class="section-meta">{{ displayDate(sections.exposure.fetched_at) }}</div>
+            </section>
+
+            <section class="section">
               <div class="section-heading"><h2>DNS record set</h2><SectionRetry :status="statusFor('dns')" :pending="statusFor('dns') === 'loading' || !!retries.dns" :error="retryErrors.dns" @retry="$emit('retry', 'dns')" /></div>
               <div v-if="sections.dns?.message" class="note">{{ sections.dns.message }}</div>
               <Transition name="reveal">

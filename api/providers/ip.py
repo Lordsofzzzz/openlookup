@@ -76,7 +76,10 @@ async def _asn_name(asn: str, resolver: DNSResolverPool) -> str | None:
     return None
 
 
-async def lookup(domain: str, resolver: DNSResolverPool) -> tuple[str, dict[str, Any]]:
+async def resolve_public_addresses(
+    domain: str, resolver: DNSResolverPool
+) -> list[ipaddress.IPv4Address | ipaddress.IPv6Address]:
+    """Return sorted public A/AAAA addresses; raise TimeoutError if DNS is down."""
     resolved = await asyncio.gather(
         resolver.resolve(domain, "A"),
         resolver.resolve(domain, "AAAA"),
@@ -99,9 +102,11 @@ async def lookup(domain: str, resolver: DNSResolverPool) -> tuple[str, dict[str,
                 if address.is_global:
                     addresses.add(address)
 
-    public_addresses = sorted(
-        addresses, key=lambda address: (address.version, int(address))
-    )
+    return sorted(addresses, key=lambda address: (address.version, int(address)))
+
+
+async def lookup(domain: str, resolver: DNSResolverPool) -> tuple[str, dict[str, Any]]:
+    public_addresses = await resolve_public_addresses(domain, resolver)
 
     asn_results = await asyncio.gather(
         *(_asn_record(address, resolver) for address in public_addresses)

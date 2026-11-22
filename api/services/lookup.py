@@ -10,7 +10,15 @@ import httpx
 
 from config import settings
 from core.models import ProviderResult
-from providers import dns, dnssec, email_security, ip, rdap, subdomains
+from providers import (
+    dns,
+    dnssec,
+    email_security,
+    exposure,
+    ip,
+    rdap,
+    subdomains,
+)
 from providers.dns_resolver import DNS_SOURCE, DNSResolverPool
 
 
@@ -68,6 +76,12 @@ class LookupService:
                 12,
                 lambda name: ip.lookup(name, resolver),
                 max(0, settings.ip_cache_ttl_seconds),
+            ),
+            "exposure": Section(
+                "Shodan InternetDB",
+                10,
+                lambda name: exposure.lookup(name, resolver, client),
+                max(0, settings.exposure_cache_ttl_seconds),
             ),
             "email_security": Section(
                 DNS_SOURCE,

@@ -6,6 +6,7 @@ const sectionNames = [
   'dnssec',
   'rdap',
   'subdomains',
+  'exposure',
   'email_security',
 ]
 const domainPattern = /^(?=.{1,253}$)([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+(?:[a-z]{2,63}|xn--[a-z0-9-]{2,59})$/

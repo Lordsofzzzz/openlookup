@@ -29,6 +29,9 @@ class Settings:
     subdomains_cache_ttl_seconds: int = int(
         os.getenv("SUBDOMAINS_CACHE_TTL_SECONDS", "3600")
     )
+    exposure_cache_ttl_seconds: int = int(
+        os.getenv("EXPOSURE_CACHE_TTL_SECONDS", "3600")
+    )
     certspotter_api_key: str | None = os.getenv("CERTSPOTTER_API_KEY") or None
     max_provider_response_bytes: int = 2_000_000
 
