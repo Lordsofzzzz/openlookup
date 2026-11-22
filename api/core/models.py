@@ -14,6 +14,7 @@ class ProviderResult(BaseModel):
     source: str
     fetched_at: datetime
     data: dict[str, Any] = Field(default_factory=dict)
+    retryable: bool = False
     message: str | None = None
 
 

@@ -1,6 +1,41 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
+import SectionRetry from './SectionRetry.vue'
+
+const retries = ref({})
+const retryErrors = ref({})
+
+function clearRetries() {
+  for (const controller of Object.values(retries.value)) controller.abort()
+  retries.value = {}
+  retryErrors.value = {}
+}
+
+async function retrySection(key) {
+  if (retries.value[key]) return
+  const controller = new AbortController()
+  retries.value[key] = controller
+  retryErrors.value[key] = ''
+  try {
+    const url = `/api/v1/domain/${encodeURIComponent(resultDomain.value)}/sections/${key}`
+    const response = await fetch(url, { signal: controller.signal })
+    if (!response.ok) throw new Error('Retry request failed')
+    const result = await response.json()
+    if (controller.signal.aborted) return
+    if (result.section !== key) throw new Error('Unexpected section')
+    if (sectionState(key)?.status === 'ok' && result.status !== 'ok') {
+      retryErrors.value[key] = result.message || 'Retry failed.'
+    } else {
+      sections.value[key] = result
+    }
+  } catch {
+    if (!controller.signal.aborted) retryErrors.value[key] = 'Retry request failed. Try again.'
+  } finally {
+    if (!controller.signal.aborted) delete retries.value[key]
+  }
+}
+
 const domain = ref('')
 const resultDomain = ref('')
 const notice = ref('')
@@ -144,6 +179,7 @@ function updateLookupUrl(host) {
   }
 }
 function resetSearch(updateUrl = true) {
+  clearRetries()
   closeStream()
   domain.value = ''
   resultDomain.value = ''
@@ -186,6 +222,7 @@ async function investigate({ updateUrl = true } = {}) {
   if (!domainPattern.test(host)) { notice.value = `“${domain.value.trim()}” is not a valid domain.`; inputEl.value?.focus(); return }
 
   if (updateUrl) updateLookupUrl(host)
+  clearRetries()
   closeStream()
   sections.value = {}
   domain.value = host
@@ -218,6 +255,7 @@ async function investigate({ updateUrl = true } = {}) {
   }
 }
 onBeforeUnmount(() => {
+  clearRetries()
   closeStream()
   removeInputListeners?.()
   mapObserver?.disconnect()
@@ -272,7 +310,7 @@ onBeforeUnmount(() => {
         <div class="layout">
           <div class="main-col">
             <section class="section">
-              <div class="section-heading"><h2>Infrastructure</h2><span class="section-index" :class="sectionStatus('ip')">{{ sectionStatus('ip').toUpperCase() }}</span></div>
+              <div class="section-heading"><h2>Infrastructure</h2><SectionRetry :status="sectionStatus('ip')" :pending="!!retries.ip" :error="retryErrors.ip" @retry="retrySection('ip')" /></div>
               <div v-if="sectionState('ip')?.message" class="note">{{ sectionState('ip').message }}</div>
               <Transition name="reveal">
                 <div v-if="sectionState('ip')?.status === 'ok'" class="identity-block">
@@ -297,7 +335,7 @@ onBeforeUnmount(() => {
             </section>
 
             <section class="section">
-              <div class="section-heading"><h2>DNS record set</h2><span class="section-index" :class="sectionStatus('dns')">{{ sectionStatus('dns').toUpperCase() }}</span></div>
+              <div class="section-heading"><h2>DNS record set</h2><SectionRetry :status="sectionStatus('dns')" :pending="!!retries.dns" :error="retryErrors.dns" @retry="retrySection('dns')" /></div>
               <div v-if="sectionState('dns')?.message" class="note">{{ sectionState('dns').message }}</div>
               <Transition name="reveal">
                 <div v-if="sectionState('dns')?.status === 'ok'" class="table-wrap">
@@ -318,7 +356,7 @@ onBeforeUnmount(() => {
 
           <aside class="side-col">
             <section class="side-section">
-              <h2 class="side-heading">Registration profile <span class="section-index" :class="sectionStatus('rdap')">{{ sectionStatus('rdap').toUpperCase() }}</span></h2>
+              <h2 class="side-heading">Registration profile <SectionRetry :status="sectionStatus('rdap')" :pending="!!retries.rdap" :error="retryErrors.rdap" @retry="retrySection('rdap')" /></h2>
               <div v-if="sectionState('rdap')?.message" class="note">{{ sectionState('rdap').message }}</div>
               <Transition name="reveal">
                 <dl v-if="sectionState('rdap')?.status === 'ok'" class="profile-list">
@@ -334,7 +372,7 @@ onBeforeUnmount(() => {
             </section>
 
             <section class="side-section">
-              <h2 class="side-heading">Email security <span class="section-index" :class="sectionStatus('email_security')">{{ sectionStatus('email_security').toUpperCase() }}</span></h2>
+              <h2 class="side-heading">Email security <SectionRetry :status="sectionStatus('email_security')" :pending="!!retries.email_security" :error="retryErrors.email_security" @retry="retrySection('email_security')" /></h2>
               <div v-if="sectionState('email_security')?.message" class="note">{{ sectionState('email_security').message }}</div>
               <Transition name="reveal">
                 <div v-if="sectionState('email_security')?.status === 'ok'">
@@ -352,7 +390,7 @@ onBeforeUnmount(() => {
             </section>
 
             <section class="side-section">
-              <h2 class="side-heading">Subdomains <span class="section-index" :class="sectionStatus('subdomains')">{{ sectionStatus('subdomains').toUpperCase() }}</span></h2>
+              <h2 class="side-heading">Subdomains <SectionRetry :status="sectionStatus('subdomains')" :pending="!!retries.subdomains" :error="retryErrors.subdomains" @retry="retrySection('subdomains')" /></h2>
               <div v-if="sectionState('subdomains')?.message" class="note">{{ sectionState('subdomains').message }}</div>
               <Transition name="reveal">
                 <div v-if="sectionState('subdomains')?.status === 'ok'">
@@ -494,7 +532,7 @@ td.value{font:11px var(--mono);color:#cbd7cd;overflow-wrap:anywhere;max-width:33
 .record-type{font:600 11px var(--mono);color:var(--acid)}
 .ttl,.source{font:11px var(--mono);color:var(--muted);white-space:nowrap}
 .side-section{margin-bottom:25px}
-.side-heading{font:600 15px "Pixelify Sans",sans-serif;padding-bottom:10px;border-bottom:1px solid var(--line);margin:0 0 2px}
+.side-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;font:600 15px "Pixelify Sans",sans-serif;padding-bottom:10px;border-bottom:1px solid var(--line);margin:0 0 2px}
 .profile-list{margin:0}
 .profile-row{display:grid;grid-template-columns:105px minmax(0,1fr);gap:10px;padding:12px 0;border-bottom:1px solid var(--line-soft);font-size:11px}
 .profile-row dt{color:var(--muted)}

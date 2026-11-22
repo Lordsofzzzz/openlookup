@@ -13,6 +13,10 @@ _bootstrap_expires = 0.0
 _bootstrap_lock = asyncio.Lock()
 
 
+class UnsupportedSuffix(ValueError):
+    pass
+
+
 async def _get_bootstrap(client: httpx.AsyncClient) -> dict[str, Any]:
     global _bootstrap, _bootstrap_expires
     async with _bootstrap_lock:
@@ -97,7 +101,7 @@ async def lookup(domain: str, client: httpx.AsyncClient) -> tuple[str, dict[str,
     urls = _registry_urls(bootstrap, tld)
     registry = next((safe for url in urls if (safe := _safe_registry_url(url))), None)
     if not registry:
-        raise ValueError("No RDAP registry is listed for this domain suffix.")
+        raise UnsupportedSuffix("No RDAP registry is listed for this domain suffix.")
 
     endpoint = f"{registry}domain/{quote(domain, safe='.-')}"
     data = await get_json(

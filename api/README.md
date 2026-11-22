@@ -20,7 +20,9 @@ The API listens on `http://localhost:8000`. Interactive docs and the OpenAPI sch
 - `GET /api/health`
 - `GET /api/v1/domain/{name}` returns all sections in one JSON response.
 - `GET /api/v1/domain/{name}/stream` emits one `section` SSE event per completed provider and a final `done` event.
-Every section has `section`, `status`, `source`, `fetched_at`, `data`, and an optional `message`. A failed provider returns its own error or timeout result.
+- `GET /api/v1/domain/{name}/sections/{section}` runs a single provider and returns one section with `Cache-Control: no-store`. Supported sections are `dns`, `rdap`, `subdomains`, `ip`, and `email_security`. Unknown sections return 404 and invalid domains return 422. Lookup requests that wait two seconds for capacity return 503.
+
+Every section has `section`, `status`, `source`, `fetched_at`, `data`, a `retryable` flag, and an optional `message`. A failed provider returns its own error or timeout result.
 
 ## Data sources
 
