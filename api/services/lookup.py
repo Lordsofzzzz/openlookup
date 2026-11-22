@@ -9,6 +9,7 @@ from typing import Any
 import httpx
 
 from config import settings
+from core.diagnostics import event, failure
 from core.models import ProviderResult
 from providers import (
     dns,
@@ -100,6 +101,21 @@ class LookupService:
     async def lookup_section(
         self, domain: str, key: str, *, refresh: bool = False
     ) -> ProviderResult:
+        started = time.monotonic()
+        result = await self._lookup_section(domain, key, refresh=refresh)
+        event(
+            "section_completed",
+            section=key,
+            provider=self.sections[key].source,
+            outcome=result.status,
+            partial=bool(result.data.get("errors")),
+            duration_ms=round((time.monotonic() - started) * 1000, 2),
+        )
+        return result
+
+    async def _lookup_section(
+        self, domain: str, key: str, *, refresh: bool = False
+    ) -> ProviderResult:
         cache_key = (domain, key)
         async with self._flight_lock:
             task = self._in_flight.get(cache_key)
@@ -141,14 +157,23 @@ class LookupService:
             if result.data.get("errors"):
                 result.retryable = True
                 result.message = "Some lookup data was unavailable."
-        except (TimeoutError, httpx.TimeoutException):
+        except (TimeoutError, httpx.TimeoutException) as exc:
+            event(
+                "provider_failed", section=key, provider=section.source, **failure(exc)
+            )
             result.status = "timeout"
             result.retryable = True
             result.message = f"{key.upper()} lookup timed out."
         except rdap.UnsupportedSuffix as exc:
+            event(
+                "provider_failed", section=key, provider=section.source, **failure(exc)
+            )
             result.status = "error"
             result.message = str(exc)
         except Exception as exc:  # noqa: BLE001 - isolate failures to this section
+            event(
+                "provider_failed", section=key, provider=section.source, **failure(exc)
+            )
             result.status = "error"
             result.retryable = isinstance(exc, httpx.TransportError) or (
                 isinstance(exc, httpx.HTTPStatusError)

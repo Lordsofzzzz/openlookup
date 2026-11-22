@@ -1,14 +1,13 @@
 """Shared fan-out resolver for public DNS lookups."""
 
 import asyncio
-import logging
 from typing import Any
 
 import dns.asyncresolver
 import dns.exception
 import dns.resolver
 
-logger = logging.getLogger(__name__)
+from core.diagnostics import event, failure
 
 DNS_SERVERS = ("1.1.1.1", "1.0.0.1")
 DNS_SOURCE = "Cloudflare DNS"
@@ -55,11 +54,11 @@ class DNSResolverPool:
                 except dns.resolver.NXDOMAIN as exc:
                     return exc
                 except (dns.exception.DNSException, OSError, TimeoutError) as exc:
-                    logger.warning(
-                        "DNS upstream %s failed for %s query (%s)",
-                        server_name,
-                        record_type,
-                        type(exc).__name__,
+                    event(
+                        "dns_upstream_failed",
+                        provider=server_name,
+                        record_type=record_type,
+                        **failure(exc),
                     )
                     return exc
 

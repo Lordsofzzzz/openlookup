@@ -5,6 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from config import settings
+from core.diagnostics import RequestContextMiddleware, configure_logging
 from providers.dns_resolver import DNSResolverPool
 from routes.domain import router as domain_router
 from routes.health import router as health_router
@@ -15,6 +16,7 @@ from services.lookup import LookupService
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    configure_logging()
     client = httpx.AsyncClient(
         timeout=httpx.Timeout(8.0, connect=3.0),
         limits=httpx.Limits(max_connections=40, max_keepalive_connections=20),
@@ -41,6 +43,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=list(settings.cors_origins),
     allow_credentials=False,
+    expose_headers=["X-Request-ID"],
     allow_methods=["GET"],
     allow_headers=["Accept", "Content-Type"],
 )
@@ -48,3 +51,5 @@ app.include_router(domain_router)
 app.include_router(sections_router)
 app.include_router(stream_router)
 app.include_router(health_router)
+
+app.add_middleware(RequestContextMiddleware)

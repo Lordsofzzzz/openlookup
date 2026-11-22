@@ -38,3 +38,11 @@ Outbound HTTP requests use fixed provider hosts, bounded response sizes, timeout
 ## Configuration
 
 Set `CORS_ORIGINS` to a comma-separated list of exact frontend origins in production. Keep `CERTSPOTTER_API_KEY` and other provider credentials in the API host environment; never put them in the web client. The lookup concurrency cap and section cache are process-local and should be coordinated across instances if needed. Successful section results are cached for 2 minutes for DNS, DNSSEC, and email security, 10 minutes for IP/ASN, 1 hour for subdomains, 1 hour for exposure, and 1 hour for RDAP. Set `DNS_CACHE_TTL_SECONDS`, `DNSSEC_CACHE_TTL_SECONDS`, `EMAIL_SECURITY_CACHE_TTL_SECONDS`, `IP_CACHE_TTL_SECONDS`, `SUBDOMAINS_CACHE_TTL_SECONDS`, `EXPOSURE_CACHE_TTL_SECONDS`, or `RDAP_CACHE_TTL_SECONDS` to change each lifetime. Set a TTL to `0` to disable caching for that section. Identical concurrent requests for a section share one provider call. Manual section refreshes bypass cached results and join an identical request already in progress. The in-memory cache is bounded to 2,048 entries.
+
+Diagnostic events are JSON on stdout. Each section completion records its configured
+provider, outcome and duration, including cache hits. Provider failures use controlled
+error descriptions instead of raw exception text. Searched domains, client IPs,
+user agents, credentials and provider response bodies are not diagnostic fields.
+Each HTTP request receives a generated `X-Request-ID`, also attached to its events.
+Shared in-flight provider work retains the initiating request's ID; each waiting
+request records its own section completion. Log retention is managed by Kubernetes.
