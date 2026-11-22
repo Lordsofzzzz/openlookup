@@ -18,12 +18,6 @@ export function useDomainLookup(inputEl) {
   const retryErrors = ref({})
   const streamStatus = ref('idle')
   const idle = computed(() => streamStatus.value === 'idle')
-  const domainNotFound = computed(() => {
-    const dns = sections.value.dns
-    const rdap = sections.value.rdap
-    return (dns?.status === 'ok' && dns.data?.nxdomain === true)
-      || (rdap?.status === 'ok' && rdap.data?.registered === false)
-  })
   let eventSource
 
   function normalize(value) {
@@ -172,7 +166,6 @@ export function useDomainLookup(inputEl) {
     retryErrors,
     streamStatus,
     idle,
-    domainNotFound,
     resetSearch,
     investigate,
     retrySection,

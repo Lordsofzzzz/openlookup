@@ -17,7 +17,6 @@ const {
   retryErrors,
   streamStatus,
   idle,
-  domainNotFound,
   resetSearch,
   investigate,
   retrySection,
@@ -93,8 +92,6 @@ onBeforeUnmount(() => {
             <div class="subject-meta">{{ streamStatus === 'loading' ? 'Lookup in progress' : streamStatus === 'complete' ? 'Lookup complete' : 'Lookup interrupted' }}</div>
           </div>
         </div>
-        <div v-if="domainNotFound" class="note" role="status">Domain not found.</div>
-
         <ResultCards
           :sections="sections"
           :retries="retries"

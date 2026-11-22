@@ -7,6 +7,8 @@ from config import settings
 from .http import get_json
 
 _CERTSPOTTER_URL = "https://api.certspotter.com/v1/issuances"
+_MAX_SUBDOMAINS = 1000
+_MAX_PAGES = 10
 
 
 def _hostnames(items: Any, domain: str) -> list[str]:
@@ -30,29 +32,58 @@ def _hostnames(items: Any, domain: str) -> list[str]:
             host = candidate.strip().lower().removeprefix("*.").rstrip(".")
             if host != domain and host.endswith(f".{domain}") and len(host) <= 253:
                 names.add(host)
-    return sorted(names)[:1000]
+    return sorted(names)
 
 
-async def _certspotter(domain: str, client: httpx.AsyncClient) -> list[str]:
+async def _certspotter(
+    domain: str, client: httpx.AsyncClient
+) -> tuple[list[str], bool]:
     headers = (
         {"Authorization": f"Bearer {settings.certspotter_api_key}"}
         if settings.certspotter_api_key
         else None
     )
-    response = await get_json(
-        client,
-        _CERTSPOTTER_URL,
-        params={
-            "domain": domain,
-            "include_subdomains": "true",
-            "expand": "dns_names",
-            "page_size": "1000",
-        },
-        headers=headers,
-    )
-    return _hostnames(response, domain)
+    params = {
+        "domain": domain,
+        "include_subdomains": "true",
+        "expand": "dns_names",
+    }
+    names: set[str] = set()
+    after: str | None = None
+
+    for page_number in range(_MAX_PAGES):
+        page_params = {**params}
+        if after is not None:
+            page_params["after"] = after
+        response = await get_json(
+            client, _CERTSPOTTER_URL, params=page_params, headers=headers
+        )
+        if not isinstance(response, list):
+            raise TypeError("Invalid Cert Spotter response.")
+        if not response:
+            return sorted(names), False
+
+        names.update(_hostnames(response, domain))
+        if len(names) > _MAX_SUBDOMAINS:
+            return sorted(names)[:_MAX_SUBDOMAINS], True
+
+        last_issuance = response[-1]
+        next_after = (
+            last_issuance.get("id") if isinstance(last_issuance, dict) else None
+        )
+        if isinstance(next_after, int) and not isinstance(next_after, bool):
+            next_after = str(next_after)
+        if not isinstance(next_after, str) or not next_after or next_after == after:
+            return sorted(names)[:_MAX_SUBDOMAINS], True
+        after = next_after
+
+    return sorted(names)[:_MAX_SUBDOMAINS], True
 
 
 async def lookup(domain: str, client: httpx.AsyncClient) -> tuple[str, dict[str, Any]]:
-    names = await _certspotter(domain, client)
-    return "Cert Spotter", {"subdomains": names, "count": len(names)}
+    names, truncated = await _certspotter(domain, client)
+    return "Cert Spotter", {
+        "subdomains": names,
+        "count": len(names),
+        "truncated": truncated,
+    }
