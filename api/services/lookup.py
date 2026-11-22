@@ -46,7 +46,7 @@ class LookupService:
                 max(0, settings.dns_cache_ttl_seconds),
             ),
             "dnssec": Section(
-                "Cloudflare DNSSEC validation",
+                "Google Public DNS DNSSEC validation",
                 6,
                 lambda name: dnssec.lookup(name, client),
                 max(0, settings.dnssec_cache_ttl_seconds),
@@ -143,7 +143,24 @@ class LookupService:
                     or exc.response.status_code >= 500
                 )
             )
-            result.message = f"{key.upper()} data source is unavailable."
+            if (
+                key == "dnssec"
+                and isinstance(exc, httpx.ConnectError)
+                and "CERTIFICATE_VERIFY_FAILED" in str(exc).upper()
+            ):
+                result.message = (
+                    "DNSSEC lookup could not verify Google's TLS certificate. "
+                    "Check this server's trusted certificates and HTTPS network settings."
+                )
+            elif (
+                isinstance(exc, httpx.HTTPStatusError)
+                and exc.response.status_code == 429
+            ):
+                result.message = (
+                    f"{key.upper()} provider rate limit reached. Try again later."
+                )
+            else:
+                result.message = f"{key.upper()} data source is unavailable."
         cache_ttl = section.cache_ttl
         if result.status == "ok" and cache_ttl:
             async with self._flight_lock:
