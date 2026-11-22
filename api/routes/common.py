@@ -12,7 +12,9 @@ async def domain_or_422(name: str) -> str:
         return normalize_domain(name)
     except ValueError as exc:
         raise HTTPException(
-            status_code=422, detail="Enter a valid domain name."
+            status_code=422,
+            detail="Enter a valid domain name.",
+            headers={"Cache-Control": "no-store"},
         ) from exc
 
 

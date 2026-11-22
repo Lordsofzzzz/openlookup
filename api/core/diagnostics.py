@@ -75,11 +75,20 @@ class RequestContextMiddleware:
         async def send_with_id(message):
             if message["type"] == "http.response.start":
                 message = dict(message)
-                message["headers"] = [
-                    (key, value)
+                headers = {
+                    key.lower(): (key, value)
                     for key, value in message.get("headers", [])
-                    if key.lower() != b"x-request-id"
-                ] + [(b"x-request-id", identifier.encode("ascii"))]
+                }
+                headers[b"cache-control"] = (b"cache-control", b"no-store")
+                headers[b"x-content-type-options"] = (
+                    b"x-content-type-options",
+                    b"nosniff",
+                )
+                headers[b"x-request-id"] = (
+                    b"x-request-id",
+                    identifier.encode("ascii"),
+                )
+                message["headers"] = list(headers.values())
             await send(message)
 
         try:
