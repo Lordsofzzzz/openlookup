@@ -1,11 +1,11 @@
 import asyncio
 from typing import Annotated
 
-from core.models import DomainLookupResponse
 from fastapi import APIRouter, Depends
-from services.lookup import LookupService
 
+from core.models import DomainLookupResponse
 from routes.common import domain_or_422, get_lookup_service
+from services.lookup import LookupService
 
 router = APIRouter(prefix="/api/v1/domain", tags=["domain"])
 

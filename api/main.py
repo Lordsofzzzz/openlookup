@@ -1,9 +1,10 @@
 from contextlib import asynccontextmanager
 
 import httpx
-from config import settings
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
+from config import settings
 from providers.dns_resolver import DNSResolverPool
 from routes.domain import router as domain_router
 from routes.health import router as health_router

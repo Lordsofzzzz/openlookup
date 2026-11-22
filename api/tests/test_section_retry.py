@@ -4,6 +4,7 @@ from collections import Counter
 from unittest import IsolatedAsyncioTestCase
 
 import httpx
+
 from main import app
 from services.lookup import Section
 

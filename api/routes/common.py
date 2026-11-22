@@ -1,8 +1,9 @@
 from collections.abc import AsyncIterator
 from typing import Annotated
 
-from core.validate import normalize_domain
 from fastapi import Depends, HTTPException, Request, Response
+
+from core.validate import normalize_domain
 from services.lookup import LookupBusy, LookupService
 
 

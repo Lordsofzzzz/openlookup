@@ -5,9 +5,9 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
-from services.lookup import LookupService
 
 from routes.common import domain_or_422, get_lookup_service
+from services.lookup import LookupService
 
 router = APIRouter(prefix="/api/v1/domain", tags=["domain"])
 
