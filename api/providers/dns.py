@@ -5,7 +5,7 @@ import dns.resolver
 
 from .dns_resolver import DNS_SOURCE, DNSResolverPool
 
-_RECORD_TYPES = ("A", "AAAA", "MX", "NS", "TXT", "CNAME")
+_RECORD_TYPES = ("A", "AAAA", "MX", "NS", "TXT", "CNAME", "CAA")
 
 
 def _value(record: Any, record_type: str) -> str:

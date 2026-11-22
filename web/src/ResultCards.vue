@@ -82,8 +82,8 @@ defineEmits(['retry'])
               <div v-if="sections.email_security?.message" class="note">{{ sections.email_security.message }}</div>
               <Transition name="reveal">
                 <div v-if="sections.email_security?.status === 'ok'">
-                  <div v-for="kind in ['spf', 'dmarc']" :key="kind" class="email-policy">
-                    <div class="email-policy-heading"><strong>{{ kind.toUpperCase() }}</strong><span :class="sections.email_security.data[kind].status">{{ sections.email_security.data[kind].status }}</span></div>
+                  <div v-for="kind in ['spf', 'dmarc', 'mta_sts', 'tls_rpt']" :key="kind" class="email-policy">
+                    <div class="email-policy-heading"><strong>{{ kind.replace('_', '-').toUpperCase() }}</strong><span :class="sections.email_security.data[kind].status">{{ sections.email_security.data[kind].status }}</span></div>
                     <p>{{ sections.email_security.data[kind].summary }}</p>
                     <div v-if="kind === 'dmarc' && sections.email_security.data.dmarc.policy" class="email-policy-value"><span>Policy</span><strong>{{ sections.email_security.data.dmarc.policy }}</strong></div>
                     <div v-for="record in sections.email_security.data[kind].records" :key="record" class="email-record">{{ record }}</div>

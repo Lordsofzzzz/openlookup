@@ -26,8 +26,8 @@ Every section has `section`, `status`, `source`, `fetched_at`, `data`, a `retrya
 
 ## Data sources
 
-- DNS: configured recursive resolver via dnspython; A, AAAA, MX, NS, TXT, and CNAME records.
-- Email security: SPF at the domain and DMARC at `_dmarc.<domain>` via the configured recursive resolver.
+- DNS: configured recursive resolver via dnspython; A, AAAA, MX, NS, TXT, CNAME, and CAA records.
+- Email security: SPF, DMARC, MTA-STS, and TLS-RPT TXT records via the configured recursive resolver.
 - Registration: IANA RDAP bootstrap and the selected registry endpoint.
 - Subdomains: Cert Spotter.
 - IP/ASN: public A/AAAA records and Team Cymru's DNS-based ASN service. Private and non-global addresses are excluded from ASN queries.
