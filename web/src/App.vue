@@ -231,6 +231,11 @@ td.value{font:11px var(--mono);color:#cbd7cd;overflow-wrap:anywhere;max-width:33
 .side-section{margin-bottom:25px}
 .side-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;font:600 15px "Pixelify Sans",sans-serif;padding-bottom:10px;border-bottom:1px solid var(--line);margin:0 0 2px}
 .profile-list{margin:0}
+.dnssec-result{padding:13px 0;border-bottom:1px solid var(--line-soft)}
+.dnssec-state{display:inline-block;padding:3px 6px;border:1px solid var(--line);font:10px var(--mono);text-transform:uppercase;letter-spacing:.4px;color:var(--muted)}
+.dnssec-state.secure{border-color:rgba(167,230,107,.4);color:var(--acid)}
+.dnssec-state.bogus,.dnssec-state.unverified,.dnssec-state.indeterminate,.dnssec-state.not_found{border-color:rgba(216,182,107,.4);color:var(--amber)}
+.dnssec-result p{margin:8px 0 0;color:var(--muted);font-size:11px;line-height:1.55}
 .profile-row{display:grid;grid-template-columns:105px minmax(0,1fr);gap:10px;padding:12px 0;border-bottom:1px solid var(--line-soft);font-size:11px}
 .profile-row dt{color:var(--muted)}
 .profile-row dd{margin:0;text-align:right;overflow-wrap:anywhere;color:var(--text)}

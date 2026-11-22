@@ -10,7 +10,7 @@ import httpx
 
 from config import settings
 from core.models import ProviderResult
-from providers import dns, email_security, ip, rdap, subdomains
+from providers import dns, dnssec, email_security, ip, rdap, subdomains
 from providers.dns_resolver import DNS_SOURCE, DNSResolverPool
 
 
@@ -23,6 +23,7 @@ class Section:
     source: str
     timeout: float
     run: Callable[[str], Awaitable[tuple[str, dict[str, Any]]]]
+    cache_ttl: int
 
 
 class LookupService:
@@ -32,33 +33,47 @@ class LookupService:
         self, client: httpx.AsyncClient, resolver: DNSResolverPool, capacity: int
     ):
         self.slots = asyncio.Semaphore(capacity)
-        self._cache_ttls = {
-            "dns": max(0, settings.dns_cache_ttl_seconds),
-            "email_security": max(0, settings.email_security_cache_ttl_seconds),
-            "rdap": max(0, settings.rdap_cache_ttl_seconds),
-            "ip": max(0, settings.ip_cache_ttl_seconds),
-            "subdomains": max(0, settings.subdomains_cache_ttl_seconds),
-        }
         self._cache: OrderedDict[tuple[str, str], tuple[float, ProviderResult]] = (
             OrderedDict()
         )
         self._in_flight: dict[tuple[str, str], asyncio.Task[ProviderResult]] = {}
         self._flight_lock = asyncio.Lock()
         self.sections = {
-            "dns": Section(DNS_SOURCE, 6, lambda name: dns.lookup(name, resolver)),
+            "dns": Section(
+                DNS_SOURCE,
+                6,
+                lambda name: dns.lookup(name, resolver),
+                max(0, settings.dns_cache_ttl_seconds),
+            ),
+            "dnssec": Section(
+                "Cloudflare DNSSEC validation",
+                6,
+                lambda name: dnssec.lookup(name, client),
+                max(0, settings.dnssec_cache_ttl_seconds),
+            ),
             "rdap": Section(
-                "IANA RDAP bootstrap", 8, lambda name: rdap.lookup(name, client)
+                "IANA RDAP bootstrap",
+                8,
+                lambda name: rdap.lookup(name, client),
+                max(0, settings.rdap_cache_ttl_seconds),
             ),
             "subdomains": Section(
-                "Cert Spotter", 12, lambda name: subdomains.lookup(name, client)
+                "Cert Spotter",
+                12,
+                lambda name: subdomains.lookup(name, client),
+                max(0, settings.subdomains_cache_ttl_seconds),
             ),
             "ip": Section(
                 f"Team Cymru DNS via {DNS_SOURCE}",
                 12,
                 lambda name: ip.lookup(name, resolver),
+                max(0, settings.ip_cache_ttl_seconds),
             ),
             "email_security": Section(
-                DNS_SOURCE, 6, lambda name: email_security.lookup(name, resolver)
+                DNS_SOURCE,
+                6,
+                lambda name: email_security.lookup(name, resolver),
+                max(0, settings.email_security_cache_ttl_seconds),
             ),
         }
 
@@ -129,7 +144,7 @@ class LookupService:
                 )
             )
             result.message = f"{key.upper()} data source is unavailable."
-        cache_ttl = self._cache_ttls[key]
+        cache_ttl = section.cache_ttl
         if result.status == "ok" and cache_ttl:
             async with self._flight_lock:
                 self._cache[(domain, key)] = (

@@ -36,7 +36,7 @@ class SectionRetryTest(IsolatedAsyncioTestCase):
                 return run
 
             for key in service.sections:
-                service.sections[key] = Section("mock", 1, provider(key))
+                service.sections[key] = Section("mock", 1, provider(key), 0)
 
             base = "/api/v1/domain/Example.com"
             stream = await client.get(base + "/stream")
@@ -45,7 +45,7 @@ class SectionRetryTest(IsolatedAsyncioTestCase):
                 for line in stream.text.splitlines()
                 if line.startswith("data: ")
             ]
-            self.assertEqual(events.pop(), {"domain": "example.com", "sections": 5})
+            self.assertEqual(events.pop(), {"domain": "example.com", "sections": 6})
             sections = {event["section"]: event for event in events}
             self.assertEqual(sections["rdap"]["status"], "timeout")
             self.assertTrue(sections["rdap"]["retryable"])
@@ -59,7 +59,15 @@ class SectionRetryTest(IsolatedAsyncioTestCase):
             self.assertFalse(retry.json()["retryable"])
             self.assertEqual(retry.headers["cache-control"], "no-store")
             self.assertEqual(
-                calls, Counter(dns=1, rdap=2, subdomains=1, ip=1, email_security=1)
+                calls,
+                Counter(
+                    dns=1,
+                    dnssec=1,
+                    rdap=2,
+                    subdomains=1,
+                    ip=1,
+                    email_security=1,
+                ),
             )
             self.assertEqual(
                 (await client.get(base + "/sections/unknown")).status_code, 404
@@ -68,7 +76,7 @@ class SectionRetryTest(IsolatedAsyncioTestCase):
                 (await client.get("/api/v1/domain/invalid/sections/ip")).status_code,
                 422,
             )
-            self.assertEqual(len((await client.get(base)).json()["sections"]), 5)
+            self.assertEqual(len((await client.get(base)).json()["sections"]), 6)
 
             service.slots = asyncio.Semaphore(0)
             busy = await client.get(base + "/sections/dns")

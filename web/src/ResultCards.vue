@@ -62,6 +62,16 @@ defineEmits(['retry'])
 
           <aside class="side-col">
             <section class="side-section">
+              <h2 class="side-heading">DNSSEC <SectionRetry :status="statusFor('dnssec')" :pending="!!retries.dnssec" :error="retryErrors.dnssec" @retry="$emit('retry', 'dnssec')" /></h2>
+              <div v-if="sections.dnssec?.message" class="note">{{ sections.dnssec.message }}</div>
+              <div v-if="sections.dnssec?.status === 'ok'" class="dnssec-result">
+                <span class="dnssec-state" :class="sections.dnssec.data.status">{{ sections.dnssec.data.status.replace('_', ' ') }}</span>
+                <p>{{ sections.dnssec.data.summary }}</p>
+              </div>
+              <div v-if="sections.dnssec" class="section-meta">{{ displayDate(sections.dnssec.fetched_at) }}</div>
+            </section>
+
+            <section class="side-section">
               <h2 class="side-heading">Registration profile <SectionRetry :status="statusFor('rdap')" :pending="!!retries.rdap" :error="retryErrors.rdap" @retry="$emit('retry', 'rdap')" /></h2>
               <div v-if="sections.rdap?.message" class="note">{{ sections.rdap.message }}</div>
               <Transition name="reveal">
@@ -100,7 +110,7 @@ defineEmits(['retry'])
               <div v-if="sections.subdomains?.message" class="note">{{ sections.subdomains.message }}</div>
               <Transition name="reveal">
                 <div v-if="sections.subdomains?.status === 'ok'">
-                  <div class="fact-foot">{{ sections.subdomains.data.truncated ? '1000+ found (list truncated)' : `${sections.subdomains.data.count} found` }}</div>
+                  <div class="fact-foot">{{ `${sections.subdomains.data.count} found${sections.subdomains.data.truncated ? ' (results truncated)' : ''}` }}</div>
                   <ul class="subdomain-list">
                     <li v-for="name in sections.subdomains.data.subdomains" :key="name">{{ name }}</li>
                   </ul>

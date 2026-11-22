@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 const sectionNames = [
   'ip',
   'dns',
+  'dnssec',
   'rdap',
   'subdomains',
   'email_security',

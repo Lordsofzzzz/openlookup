@@ -52,6 +52,8 @@ class DNSResolverPool:
                         raise_on_no_answer=False,
                         search=False,
                     )
+                except dns.resolver.NXDOMAIN as exc:
+                    return exc
                 except (dns.exception.DNSException, OSError, TimeoutError) as exc:
                     logger.warning(
                         "DNS upstream %s failed for %s query (%s)",
