@@ -67,7 +67,7 @@ class ExposureTest(IsolatedAsyncioTestCase):
         self.assertEqual(data["errors"], [])
 
     async def test_404_means_no_data_not_an_error(self):
-        source, data = await self._lookup(
+        _source, data = await self._lookup(
             _Resolver(a=["93.184.216.34"]), lambda request: httpx.Response(404)
         )
 
