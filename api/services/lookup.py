@@ -149,7 +149,7 @@ class LookupService:
                 and "CERTIFICATE_VERIFY_FAILED" in str(exc).upper()
             ):
                 result.message = (
-                    "DNSSEC lookup could not verify Google's TLS certificate. "
+                    "DNSSEC lookup could not verify Cloudflare's TLS certificate. "
                     "Check this server's trusted certificates and HTTPS network settings."
                 )
             elif (
