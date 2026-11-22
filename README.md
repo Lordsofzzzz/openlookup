@@ -137,4 +137,4 @@ Bug reports, documentation improvements, and focused pull requests are welcome. 
 
 ## License
 
-No license file is currently included. Until a license is added, the repository should not be assumed to grant permission to reuse, modify, or distribute its code. Add a license that reflects the maintainer's intended terms before presenting the project as licensed open source.
+No license file is currently included. Until a license is added, the repository should not be assumed to grant permission to reuse, modify, or distribute its code.
