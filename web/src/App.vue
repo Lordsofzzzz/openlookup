@@ -89,7 +89,6 @@ onBeforeUnmount(() => {
           <div>
             <div class="subject-label">Subject</div>
             <h2 class="subject-name">{{ resultDomain }}</h2>
-            <div class="subject-meta">{{ streamStatus === 'loading' ? 'Lookup in progress' : streamStatus === 'complete' ? 'Lookup complete' : 'Lookup interrupted' }}</div>
           </div>
         </div>
         <ResultCards

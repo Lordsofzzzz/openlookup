@@ -16,7 +16,7 @@ defineEmits(['retry'])
         <div class="layout">
           <div class="main-col">
             <section class="section">
-              <div class="section-heading"><h2>Infrastructure</h2><SectionRetry :status="statusFor('ip')" :pending="!!retries.ip" :error="retryErrors.ip" @retry="$emit('retry', 'ip')" /></div>
+              <div class="section-heading"><h2>Infrastructure</h2><SectionRetry :status="statusFor('ip')" :pending="statusFor('ip') === 'loading' || !!retries.ip" :error="retryErrors.ip" @retry="$emit('retry', 'ip')" /></div>
               <div v-if="sections.ip?.message" class="note">{{ sections.ip.message }}</div>
               <Transition name="reveal">
                 <div v-if="sections.ip?.status === 'ok'" class="identity-block">
@@ -41,7 +41,7 @@ defineEmits(['retry'])
             </section>
 
             <section class="section">
-              <div class="section-heading"><h2>DNS record set</h2><SectionRetry :status="statusFor('dns')" :pending="!!retries.dns" :error="retryErrors.dns" @retry="$emit('retry', 'dns')" /></div>
+              <div class="section-heading"><h2>DNS record set</h2><SectionRetry :status="statusFor('dns')" :pending="statusFor('dns') === 'loading' || !!retries.dns" :error="retryErrors.dns" @retry="$emit('retry', 'dns')" /></div>
               <div v-if="sections.dns?.message" class="note">{{ sections.dns.message }}</div>
               <Transition name="reveal">
                 <div v-if="sections.dns?.status === 'ok'" class="table-wrap">
@@ -62,7 +62,7 @@ defineEmits(['retry'])
 
           <aside class="side-col">
             <section class="side-section">
-              <h2 class="side-heading">DNSSEC <SectionRetry :status="statusFor('dnssec')" :pending="!!retries.dnssec" :error="retryErrors.dnssec" @retry="$emit('retry', 'dnssec')" /></h2>
+              <h2 class="side-heading">DNSSEC <SectionRetry :status="statusFor('dnssec')" :pending="statusFor('dnssec') === 'loading' || !!retries.dnssec" :error="retryErrors.dnssec" @retry="$emit('retry', 'dnssec')" /></h2>
               <div v-if="sections.dnssec?.message" class="note">{{ sections.dnssec.message }}</div>
               <div v-if="sections.dnssec?.status === 'ok'" class="dnssec-result">
                 <span class="dnssec-state" :class="sections.dnssec.data.status">{{ sections.dnssec.data.status.replace('_', ' ') }}</span>
@@ -72,7 +72,7 @@ defineEmits(['retry'])
             </section>
 
             <section class="side-section">
-              <h2 class="side-heading">Registration profile <SectionRetry :status="statusFor('rdap')" :pending="!!retries.rdap" :error="retryErrors.rdap" @retry="$emit('retry', 'rdap')" /></h2>
+              <h2 class="side-heading">Registration profile <SectionRetry :status="statusFor('rdap')" :pending="statusFor('rdap') === 'loading' || !!retries.rdap" :error="retryErrors.rdap" @retry="$emit('retry', 'rdap')" /></h2>
               <div v-if="sections.rdap?.message" class="note">{{ sections.rdap.message }}</div>
               <Transition name="reveal">
                 <dl v-if="sections.rdap?.status === 'ok'" class="profile-list">
@@ -88,7 +88,7 @@ defineEmits(['retry'])
             </section>
 
             <section class="side-section">
-              <h2 class="side-heading">Email security <SectionRetry :status="statusFor('email_security')" :pending="!!retries.email_security" :error="retryErrors.email_security" @retry="$emit('retry', 'email_security')" /></h2>
+              <h2 class="side-heading">Email security <SectionRetry :status="statusFor('email_security')" :pending="statusFor('email_security') === 'loading' || !!retries.email_security" :error="retryErrors.email_security" @retry="$emit('retry', 'email_security')" /></h2>
               <div v-if="sections.email_security?.message" class="note">{{ sections.email_security.message }}</div>
               <Transition name="reveal">
                 <div v-if="sections.email_security?.status === 'ok'">
@@ -106,7 +106,7 @@ defineEmits(['retry'])
             </section>
 
             <section class="side-section">
-              <h2 class="side-heading">Subdomains <SectionRetry :status="statusFor('subdomains')" :pending="!!retries.subdomains" :error="retryErrors.subdomains" @retry="$emit('retry', 'subdomains')" /></h2>
+              <h2 class="side-heading">Subdomains <SectionRetry :status="statusFor('subdomains')" :pending="statusFor('subdomains') === 'loading' || !!retries.subdomains" :error="retryErrors.subdomains" @retry="$emit('retry', 'subdomains')" /></h2>
               <div v-if="sections.subdomains?.message" class="note">{{ sections.subdomains.message }}</div>
               <Transition name="reveal">
                 <div v-if="sections.subdomains?.status === 'ok'">
