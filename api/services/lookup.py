@@ -46,7 +46,7 @@ class LookupService:
                 max(0, settings.dns_cache_ttl_seconds),
             ),
             "dnssec": Section(
-                "Google Public DNS DNSSEC validation",
+                "Cloudflare DNSSEC validation",
                 6,
                 lambda name: dnssec.lookup(name, client),
                 max(0, settings.dnssec_cache_ttl_seconds),

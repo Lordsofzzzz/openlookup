@@ -26,7 +26,7 @@ Every section has `section`, `status`, `source`, `fetched_at`, `data`, a `retrya
 
 ## Data sources
 
-- DNS: configured recursive resolver via dnspython; A, AAAA, MX, NS, TXT, CNAME, and CAA records. DNSSEC status is checked separately through Google Public DNS DNS-over-HTTPS validation.
+- DNS: configured recursive resolver via dnspython; A, AAAA, MX, NS, TXT, CNAME, and CAA records. DNSSEC status is checked separately through Cloudflare DNS-over-HTTPS validation.
 - Email security: SPF, DMARC, MTA-STS, and TLS-RPT TXT records via the configured recursive resolver.
 - Registration: IANA RDAP bootstrap and the selected registry endpoint.
 - Subdomains: Cert Spotter.

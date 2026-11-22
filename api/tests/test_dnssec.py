@@ -9,7 +9,7 @@ from providers.dnssec import lookup
 class DNSSECTest(IsolatedAsyncioTestCase):
     async def _lookup(self, payload):
         def respond(request):
-            self.assertEqual(request.url.host, "dns.google")
+            self.assertEqual(request.url.host, "cloudflare-dns.com")
             self.assertEqual(request.url.params["type"], "DNSKEY")
             self.assertEqual(request.url.params["do"], "true")
             return httpx.Response(200, content=json.dumps(payload))
@@ -26,7 +26,7 @@ class DNSSECTest(IsolatedAsyncioTestCase):
             }
         )
 
-        self.assertEqual(source, "Google Public DNS DNSSEC validation")
+        self.assertEqual(source, "Cloudflare DNSSEC validation")
         self.assertEqual(data["status"], "secure")
         self.assertEqual(data["dnskey_count"], 2)
 

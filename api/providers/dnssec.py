@@ -4,7 +4,7 @@ import httpx
 
 from .http import get_json
 
-_GOOGLE_DOH_URL = "https://dns.google/resolve"
+_CLOUDFLARE_DOH_URL = "https://cloudflare-dns.com/dns-query"
 _DNSSEC_ERROR_CODES = (1, 2, 6, 7, 8, 9, 10, 11, 12)
 
 
@@ -18,7 +18,7 @@ def _comments(payload: dict[str, Any]) -> str:
 async def lookup(domain: str, client: httpx.AsyncClient) -> tuple[str, dict[str, Any]]:
     payload = await get_json(
         client,
-        _GOOGLE_DOH_URL,
+        _CLOUDFLARE_DOH_URL,
         params={"name": domain, "type": "DNSKEY", "do": "true"},
         headers={"Accept": "application/dns-json"},
     )
@@ -55,7 +55,7 @@ async def lookup(domain: str, client: httpx.AsyncClient) -> tuple[str, dict[str,
         status = "indeterminate"
         summary = "The resolver could not determine the DNSSEC status."
 
-    return "Google Public DNS DNSSEC validation", {
+    return "Cloudflare DNSSEC validation", {
         "status": status,
         "summary": summary,
         "dnskey_count": len(dnskeys),
