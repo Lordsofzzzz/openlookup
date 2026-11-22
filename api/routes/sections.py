@@ -22,4 +22,4 @@ async def lookup_section(
     domain: Annotated[str, Depends(domain_or_422)],
     service: Annotated[LookupService, Depends(get_lookup_service)],
 ) -> ProviderResult:
-    return await service.lookup_section(domain, section)
+    return await service.lookup_section(domain, section, refresh=True)
