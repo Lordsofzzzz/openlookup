@@ -88,9 +88,7 @@ class ExposureTest(IsolatedAsyncioTestCase):
                 return httpx.Response(200, content=json.dumps({"ports": [443]}))
             return httpx.Response(500)
 
-        _, data = await self._lookup(
-            _Resolver(a=["93.184.216.34", "8.8.8.8"]), respond
-        )
+        _, data = await self._lookup(_Resolver(a=["93.184.216.34", "8.8.8.8"]), respond)
 
         self.assertEqual(len(data["hosts"]), 2)
         self.assertEqual(len(data["errors"]), 1)

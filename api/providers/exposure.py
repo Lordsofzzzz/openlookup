@@ -60,9 +60,7 @@ def _empty(address: str) -> dict[str, Any]:
     }
 
 
-async def _one(
-    address: str, client: httpx.AsyncClient
-) -> tuple[dict[str, Any], bool]:
+async def _one(address: str, client: httpx.AsyncClient) -> tuple[dict[str, Any], bool]:
     """Return (host, failed). A 404 means InternetDB has no data for the IP."""
     try:
         payload = await get_json(client, f"{_INTERNETDB_URL}{address}")
