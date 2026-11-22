@@ -2,13 +2,13 @@ api:
   replicas: 1
   image:
     repository: ghcr.io/lordsofzzzz/openlookup-backend
-    tag: main-73e0eeb
+    tag: main-0bdcd22
 
 web:
   replicas: 1
   image:
     repository: ghcr.io/lordsofzzzz/openlookup-frontend
-    tag: main-73e0eeb
+    tag: main-0bdcd22
 
 cloudflared:
   enabled: true
