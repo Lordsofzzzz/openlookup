@@ -1,53 +1,37 @@
 # OpenLookup
 
-OpenLookup is an open source web app for inspecting publicly available domain infrastructure and security signals. Enter a domain to view DNS records, DNSSEC validation, registration data, discovered subdomains, IP and ASN details, exposure data, and email security configuration.
+OpenLookup is a self-hosted domain lookup tool. Enter a domain to see how its email is configured, who operates its network, and which hosts appear in public records. The app queries DNS resolvers and public data providers without probing the target host.
 
-Results come from public DNS and third-party data providers. They can be incomplete or out of date, and exposure data is a signal to investigate rather than proof of compromise.
+Results appear one section at a time. If a provider times out, you can refresh that section while keeping the results already on screen. Copy the results URL to share the domain lookup.
 
-## Features
+## What a lookup shows
 
-- DNS records: A, AAAA, MX, NS, TXT, CNAME, and CAA
-- DNSSEC validation through Cloudflare DNS over HTTPS
-- Email security checks for SPF, DMARC, MTA-STS, and TLS reporting (TLS-RPT)
-- Registration data through IANA RDAP bootstrap and registry RDAP servers
-- Certificate transparency based subdomain discovery through Cert Spotter
-- Public IP and ASN information through DNS and Team Cymru
-- Public exposure data from Shodan InternetDB
-- Live section updates and individual section refreshes
+| Section | Results | Source |
+| --- | --- | --- |
+| DNS records | A, AAAA, MX, NS, TXT, CNAME, and CAA records with TTLs | Recursive DNS resolver |
+| DNSSEC | Whether the resolver validated the domain’s DNSKEY response | Cloudflare DNS over HTTPS |
+| Email security | Published SPF, DMARC, MTA-STS, and TLS reporting policies | DNS TXT records |
+| Registration | Registrar, nameservers, status flags, and registration dates | Registry RDAP via IANA bootstrap |
+| Subdomains | Hostnames observed in public certificates | Cert Spotter |
+| Infrastructure | Public IP addresses, network prefixes, and autonomous system numbers | DNS and Team Cymru |
+| Exposure | Previously observed ports, software, and inferred CVEs for up to ten public IPs | Shodan InternetDB |
 
-## Architecture
-
-```text
-Browser ──> Web app (Vue + Nginx) ──> API (FastAPI)
-                                         ├── DNS / DNSSEC
-                                         ├── RDAP
-                                         ├── Cert Spotter
-                                         ├── Team Cymru
-                                         └── Shodan InternetDB
-```
-
-The API is stateless and has no database. It uses a bounded in-memory cache and shares identical concurrent provider requests. The Helm chart deploys the API and web app as Kubernetes services; the API service defaults to internal `ClusterIP`. Cloudflare Tunnel can expose the web service without publishing the API service directly.
-
-The API makes outbound requests only to fixed provider services, applies timeouts and response size limits, and does not follow redirects. It does not fetch user-supplied URLs or connect to the target host.
+Certificate records show only the hostnames observed by the provider. Exposure data can lag behind infrastructure changes, and a CVE inferred from a software version needs independent verification.
 
 ## Run locally
 
-Requirements: Python 3.12+, Node.js 22+, and npm.
-
-Start the API:
+Use Python 3.12+, Node.js 22+, and npm. From the repository root, start the FastAPI server in one terminal.
 
 ```sh
 cd api
-python -m venv .venv
-source .venv/bin/activate
+python3 -m venv .venv
+. .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
 uvicorn main:app --reload --no-access-log
 ```
 
-The API listens on `http://localhost:8000`. Interactive API documentation is at `http://localhost:8000/docs`.
-
-In another terminal, start the web app:
+In a second terminal, start the Vue app from the repository root.
 
 ```sh
 cd web
@@ -55,86 +39,43 @@ npm ci
 npm run dev
 ```
 
-Open the Vite URL printed in the terminal (usually `http://localhost:5173`). The web development server proxies `/api` requests to the local API.
+Open the local URL printed by Vite (usually [localhost:5173](http://localhost:5173)) and enter `example.com`. Vite forwards requests under `/api` to port 8000. The API needs outbound network access for lookups. The Cert Spotter API key is optional.
 
-## API routes
+## Use the API
 
-| Method | Route | Purpose |
-| --- | --- | --- |
-| `GET` | `/api/health` | Health probe |
-| `GET` | `/api/v1/domain/{name}` | Return all lookup sections as JSON |
-| `GET` | `/api/v1/domain/{name}/stream` | Stream sections as server-sent events |
-| `GET` | `/api/v1/domain/{name}/sections/{section}` | Fetch or retry one section |
+To retrieve just the DNS records for a domain, run the following with the API server running.
 
-Supported section names are `dns`, `dnssec`, `rdap`, `subdomains`, `ip`, `exposure`, and `email_security`. Invalid domains return `422`, unknown sections return `404`, and requests rejected due to API capacity return `503`.
+```sh
+curl http://localhost:8000/api/v1/domain/example.com/sections/dns
+```
 
-Lookup responses include a server-generated `X-Request-ID` for support and diagnostics. Error details are kept privacy-safe: searched domains and client identifiers are not included in diagnostic logs. Access logs are disabled by default because request URLs contain searched domains.
-
-## Configuration
-
-The API reads settings from environment variables and `api/.env`:
-
-| Variable | Default | Description |
-| --- | --- | --- |
-| `CORS_ORIGINS` | `http://localhost:5173` | Comma-separated allowed browser origins; use exact production origins. |
-| `MAX_CONCURRENT_LOOKUPS` | `12` | Maximum concurrent lookups per API process. |
-| `CERTSPOTTER_API_KEY` | unset | Optional Cert Spotter API key. Keep it on the API host. |
-| `DNS_CACHE_TTL_SECONDS` | `120` | Successful DNS result cache lifetime. |
-| `DNSSEC_CACHE_TTL_SECONDS` | `120` | Successful DNSSEC result cache lifetime. |
-| `EMAIL_SECURITY_CACHE_TTL_SECONDS` | `120` | Successful email security cache lifetime. |
-| `IP_CACHE_TTL_SECONDS` | `600` | Successful IP/ASN result cache lifetime. |
-| `RDAP_CACHE_TTL_SECONDS` | `3600` | Successful RDAP result cache lifetime. |
-| `SUBDOMAINS_CACHE_TTL_SECONDS` | `3600` | Successful subdomain result cache lifetime. |
-| `EXPOSURE_CACHE_TTL_SECONDS` | `3600` | Successful exposure result cache lifetime. |
-
-Set a section cache TTL to `0` to disable caching for that section. Cache and concurrency settings are process-local; multiple API replicas do not share them.
-
-## Data providers and limitations
-
-- DNS and email security use the configured public recursive resolver.
-- DNSSEC is checked separately using Cloudflare DNS-over-HTTPS validation.
-- RDAP uses the IANA bootstrap registry to find the appropriate registry service.
-- Subdomain discovery uses Certificate Transparency data from Cert Spotter; it cannot discover every hostname.
-- ASN details use Team Cymru's DNS service. Private and non-global addresses are excluded from ASN lookups.
-- Exposure details use Shodan InternetDB for up to the first 10 public IP addresses. No API key is needed. InternetDB is free for non-commercial use; review [Shodan's terms](https://www.shodan.io/) before commercial use. Its data may be stale and inferred CVEs are not confirmed vulnerabilities.
+Use `GET /api/v1/domain/{name}` for the complete JSON result, or append `/stream` to receive a server-sent event as each section finishes. Each section carries its source, fetch time, and lookup status. Explore the [interactive API docs](http://localhost:8000/docs) or see the [API guide](api/README.md) for endpoints, cache settings, provider terms, and diagnostics.
 
 ## Self-hosting
 
-The repository includes Dockerfiles and a Helm chart in `charts/`. Configure the chart image repositories and tags, provide a Kubernetes Secret containing the Cloudflare Tunnel token if enabling the tunnel, and set production `CORS_ORIGINS` for the API. Keep the API service internal and route public traffic through the web service and your Cloudflare Tunnel configuration.
+The [Helm chart](charts/) runs the Vue frontend behind Nginx and forwards API traffic to an internal FastAPI service. Each API process caches successful lookups in memory. No database setup is required.
 
-The chart defaults to one API and one web replica. The cache and concurrency cap are per process, so account for that when changing replica counts.
+Set the API and web image tags in [values.yaml](charts/values.yaml). Cloudflare Tunnel is enabled by default and expects a Kubernetes Secret named `cloudflared-token` with a `token` key. Set `cloudflared.enabled=false` if you provide your own ingress. Configure allowed browser origins with `CORS_ORIGINS` and keep provider credentials on the API server.
 
-## Development checks
+## Development
 
-Backend lint and formatting:
+From `api/`, activate the virtual environment and run the backend checks.
 
 ```sh
-cd api
-pip install -r requirements.txt
 ruff check .
 ruff format --check .
-```
-
-Backend tests:
-
-```sh
-cd api
 python -m unittest discover -s tests
 ```
 
-Frontend lint and production build:
+From `web/`, run the frontend checks.
 
 ```sh
-cd web
-npm ci
 npm run lint
 npm run build
 ```
 
-## Contributing
-
-Bug reports, documentation improvements, and focused pull requests are welcome. Please describe the problem and how you verified a change. Run the relevant lint, formatting, test, and build commands above before opening a pull request.
+Bug reports and pull requests are welcome. Include steps to reproduce a problem and the checks you ran.
 
 ## License
 
-No license file is currently included. Until a license is added, the repository should not be assumed to grant permission to reuse, modify, or distribute its code.
+This repository currently has no license file.
