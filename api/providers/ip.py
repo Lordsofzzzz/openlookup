@@ -24,12 +24,17 @@ def _system_resolver() -> dns.asyncresolver.Resolver:
 
 
 async def _txt_records(name: str, resolver: dns.asyncresolver.Resolver) -> list[str]:
-    try:
-        answers = await resolver.resolve(
-            name, "TXT", search=False, raise_on_no_answer=False
-        )
-    except dns.resolver.NXDOMAIN:
-        return []
+    for attempt in range(2):
+        try:
+            answers = await resolver.resolve(
+                name, "TXT", search=False, raise_on_no_answer=False
+            )
+            break
+        except dns.resolver.NXDOMAIN:
+            return []
+        except (dns.exception.Timeout, dns.resolver.NoNameservers, OSError):
+            if attempt:
+                raise
     if answers.rrset is None:
         return []
     return [
@@ -130,7 +135,7 @@ async def lookup(domain: str, resolver: DNSResolverPool) -> tuple[str, dict[str,
     address_asns: list[dict[str, Any]] = []
     errors = []
     for address, (records, failed) in zip(public_addresses, asn_results, strict=True):
-        if failed:
+        if failed and not errors:
             errors.append("Some ASN lookups failed.")
         asns: dict[str, dict[str, str | None]] = {}
         for record in records:

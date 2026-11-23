@@ -74,7 +74,7 @@ class LookupService:
             ),
             "ip": Section(
                 "Team Cymru DNS via system resolver",
-                12,
+                26,
                 lambda name: ip.lookup(name, resolver),
                 max(0, settings.ip_cache_ttl_seconds),
             ),
