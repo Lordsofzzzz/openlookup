@@ -73,7 +73,7 @@ class LookupService:
                 max(0, settings.subdomains_cache_ttl_seconds),
             ),
             "ip": Section(
-                f"Team Cymru DNS via {DNS_SOURCE}",
+                "Team Cymru DNS via system resolver",
                 12,
                 lambda name: ip.lookup(name, resolver),
                 max(0, settings.ip_cache_ttl_seconds),
@@ -201,7 +201,7 @@ class LookupService:
             else:
                 result.message = f"{key.upper()} data source is unavailable."
         cache_ttl = section.cache_ttl
-        if result.status == "ok" and cache_ttl:
+        if result.status == "ok" and not result.retryable and cache_ttl:
             async with self._flight_lock:
                 self._cache[(domain, key)] = (
                     time.monotonic() + cache_ttl,

@@ -35,7 +35,7 @@ class IPLookupTest(IsolatedAsyncioTestCase):
             ),
             patch(
                 "providers.ip._asn_record",
-                new=AsyncMock(side_effect=[[google], [cloudflare]]),
+                new=AsyncMock(side_effect=[([google], False), ([cloudflare], False)]),
             ),
         ):
             _, data = await lookup("example.com", resolver=None)
@@ -64,8 +64,29 @@ class IPLookupTest(IsolatedAsyncioTestCase):
                 "providers.ip.resolve_public_addresses",
                 new=AsyncMock(return_value=[address]),
             ),
-            patch("providers.ip._asn_record", new=AsyncMock(return_value=[])),
+            patch(
+                "providers.ip._asn_record",
+                new=AsyncMock(return_value=([], False)),
+            ),
         ):
             _, data = await lookup("example.com", resolver=None)
 
         self.assertEqual(data["address_asns"], [{"ip": "8.8.8.8", "asns": []}])
+
+    async def test_failed_asn_query_is_reported_as_partial_data(self):
+        address = ipaddress.ip_address("57.144.242.1")
+
+        with (
+            patch(
+                "providers.ip.resolve_public_addresses",
+                new=AsyncMock(return_value=[address]),
+            ),
+            patch(
+                "providers.ip._asn_record",
+                new=AsyncMock(return_value=([], True)),
+            ),
+        ):
+            _, data = await lookup("facebook.com", resolver=None)
+
+        self.assertEqual(data["errors"], ["Some ASN lookups failed."])
+        self.assertEqual(data["address_asns"], [{"ip": "57.144.242.1", "asns": []}])
