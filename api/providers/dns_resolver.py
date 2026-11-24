@@ -1,6 +1,7 @@
 """Shared fan-out resolver for public DNS lookups."""
 
 import asyncio
+from dataclasses import dataclass
 from typing import Any
 
 import dns.asyncresolver
@@ -13,6 +14,12 @@ DNS_SERVERS = ("1.1.1.1", "1.0.0.1")
 DNS_SOURCE = "Cloudflare DNS"
 
 
+@dataclass
+class _PendingQuery:
+    task: asyncio.Task[list[Any]]
+    waiters: int = 0
+
+
 class DNSResolverPool:
     """Query each configured resolver and return every result in server order."""
 
@@ -23,6 +30,7 @@ class DNSResolverPool:
         resolver.lifetime = 4.0
         resolver.retry_servfail = True
         self.resolvers = [(DNS_SOURCE, resolver)]
+        self._pending: dict[tuple[str, str, float], _PendingQuery] = {}
         self._semaphore = asyncio.Semaphore(max_concurrent_queries)
 
     @staticmethod
@@ -38,6 +46,25 @@ class DNSResolverPool:
         *,
         lifetime: float = 4.0,
     ) -> list[Any]:
+        key = (name, record_type, lifetime)
+        pending = self._pending.get(key)
+        if pending is None or pending.task.done():
+            pending = _PendingQuery(
+                asyncio.create_task(self._resolve(name, record_type, lifetime))
+            )
+            self._pending[key] = pending
+        pending.waiters += 1
+        try:
+            return await asyncio.shield(pending.task)
+        finally:
+            pending.waiters -= 1
+            if not pending.waiters:
+                if self._pending.get(key) is pending:
+                    del self._pending[key]
+                if not pending.task.done():
+                    pending.task.cancel()
+
+    async def _resolve(self, name: str, record_type: str, lifetime: float) -> list[Any]:
         async def query(
             server_name: str,
             resolver: dns.asyncresolver.Resolver,

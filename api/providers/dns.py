@@ -3,6 +3,8 @@ from typing import Any
 
 import dns.resolver
 
+from core.models import ProviderOutcome
+
 from .dns_resolver import DNS_SOURCE, DNSResolverPool
 
 _RECORD_TYPES = ("A", "AAAA", "MX", "NS", "TXT", "CNAME", "CAA")
@@ -20,7 +22,7 @@ def _value(record: Any, record_type: str) -> str:
     return record.to_text()
 
 
-async def lookup(domain: str, resolver: DNSResolverPool) -> tuple[str, dict[str, Any]]:
+async def lookup(domain: str, resolver: DNSResolverPool) -> ProviderOutcome:
     async def query(
         record_type: str,
     ) -> tuple[str, list[dict[str, Any]], bool, bool]:
@@ -62,4 +64,6 @@ async def lookup(domain: str, resolver: DNSResolverPool) -> tuple[str, dict[str,
 
     if not any(answered for _, _, answered, _ in results):
         raise TimeoutError("DNS resolver did not respond.")
-    return DNS_SOURCE, {"records": records, "errors": errors}
+    return ProviderOutcome(
+        DNS_SOURCE, {"records": records, "errors": errors}, partial=bool(errors)
+    )

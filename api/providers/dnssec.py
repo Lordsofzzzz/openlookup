@@ -2,6 +2,8 @@ from typing import Any
 
 import httpx
 
+from core.models import ProviderOutcome
+
 from .http import get_json
 
 _CLOUDFLARE_DOH_URL = "https://cloudflare-dns.com/dns-query"
@@ -15,7 +17,7 @@ def _comments(payload: dict[str, Any]) -> str:
     return " ".join(str(comment) for comment in comments).lower()
 
 
-async def lookup(domain: str, client: httpx.AsyncClient) -> tuple[str, dict[str, Any]]:
+async def lookup(domain: str, client: httpx.AsyncClient) -> ProviderOutcome:
     payload = await get_json(
         client,
         _CLOUDFLARE_DOH_URL,
@@ -55,8 +57,11 @@ async def lookup(domain: str, client: httpx.AsyncClient) -> tuple[str, dict[str,
         status = "indeterminate"
         summary = "The resolver could not determine the DNSSEC status."
 
-    return "Cloudflare DNSSEC validation", {
-        "status": status,
-        "summary": summary,
-        "dnskey_count": len(dnskeys),
-    }
+    return ProviderOutcome(
+        "Cloudflare DNSSEC validation",
+        {
+            "status": status,
+            "summary": summary,
+            "dnskey_count": len(dnskeys),
+        },
+    )

@@ -6,6 +6,7 @@ from unittest import IsolatedAsyncioTestCase
 import httpx
 
 from config import settings
+from core.models import ProviderOutcome
 from main import app
 from services.lookup import LookupService, Section
 
@@ -28,11 +29,15 @@ class SectionRetryTest(IsolatedAsyncioTestCase):
                     if key == "rdap" and calls[key] == 1:
                         raise TimeoutError
                     if key == "email_security":
-                        return "mock", {
-                            "spf": {"status": "found"},
-                            "errors": ["DMARC unavailable"],
-                        }
-                    return "mock", {}
+                        return ProviderOutcome(
+                            "mock",
+                            {
+                                "spf": {"status": "found"},
+                                "errors": ["DMARC unavailable"],
+                            },
+                            partial=True,
+                        )
+                    return ProviderOutcome("mock", {})
 
                 return run
 
@@ -101,3 +106,25 @@ class SectionRetryTest(IsolatedAsyncioTestCase):
             busy = await client.get(base + "/sections/dns")
             self.assertEqual(busy.status_code, 503)
             self.assertEqual(busy.headers["retry-after"], "2")
+
+    async def test_only_complete_results_are_cached(self):
+        calls = 0
+
+        async def run(domain):
+            nonlocal calls
+            calls += 1
+            return ProviderOutcome("mock", {"records": [calls]}, partial=calls == 1)
+
+        lookup = LookupService(
+            None, None, 1, sections={"dns": Section("mock", 1, run, 60)}
+        )
+        first, second, third = [
+            await lookup.lookup_section("example.com", "dns") for _ in range(3)
+        ]
+        self.assertEqual(first.status, "ok")
+        self.assertTrue(first.retryable)
+        self.assertEqual(first.data, {"records": [1]})
+        self.assertFalse(second.retryable)
+        self.assertEqual(second.data, {"records": [2]})
+        self.assertEqual(second, third)
+        self.assertEqual(calls, 2)

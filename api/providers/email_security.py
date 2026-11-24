@@ -3,6 +3,8 @@ from typing import Any
 
 import dns.resolver
 
+from core.models import ProviderOutcome
+
 from .dns_resolver import DNS_SOURCE, DNSResolverPool
 
 
@@ -151,7 +153,7 @@ def _versioned_policy(
     }
 
 
-async def lookup(domain: str, resolver: DNSResolverPool) -> tuple[str, dict[str, Any]]:
+async def lookup(domain: str, resolver: DNSResolverPool) -> ProviderOutcome:
     spf_result, dmarc_result, mta_sts_result, tls_rpt_result = await asyncio.gather(
         _txt_records(domain, resolver),
         _txt_records(f"_dmarc.{domain}", resolver),
@@ -173,10 +175,14 @@ async def lookup(domain: str, resolver: DNSResolverPool) -> tuple[str, dict[str,
         if records is None or failed
     ]
 
-    return DNS_SOURCE, {
-        "spf": _spf(spf_result[0]),
-        "dmarc": _dmarc(dmarc_result[0]),
-        "mta_sts": _versioned_policy(mta_sts_result[0], "v=stsv1", "MTA-STS"),
-        "tls_rpt": _versioned_policy(tls_rpt_result[0], "v=tlsrptv1", "TLS-RPT"),
-        "errors": errors,
-    }
+    return ProviderOutcome(
+        DNS_SOURCE,
+        {
+            "spf": _spf(spf_result[0]),
+            "dmarc": _dmarc(dmarc_result[0]),
+            "mta_sts": _versioned_policy(mta_sts_result[0], "v=stsv1", "MTA-STS"),
+            "tls_rpt": _versioned_policy(tls_rpt_result[0], "v=tlsrptv1", "TLS-RPT"),
+            "errors": errors,
+        },
+        partial=bool(errors),
+    )

@@ -5,6 +5,8 @@ from urllib.parse import quote, urlparse
 
 import httpx
 
+from core.models import ProviderOutcome
+
 from .http import get_json
 
 _BOOTSTRAP_URL = "https://data.iana.org/rdap/dns.json"
@@ -95,7 +97,7 @@ def _registrar(entities: list[dict[str, Any]]) -> str | None:
     return None
 
 
-async def lookup(domain: str, client: httpx.AsyncClient) -> tuple[str, dict[str, Any]]:
+async def lookup(domain: str, client: httpx.AsyncClient) -> ProviderOutcome:
     bootstrap = await _get_bootstrap(client)
     tld = domain.rsplit(".", 1)[-1]
     urls = _registry_urls(bootstrap, tld)
@@ -111,21 +113,24 @@ async def lookup(domain: str, client: httpx.AsyncClient) -> tuple[str, dict[str,
         raise TypeError("Invalid RDAP response.")
     entities = data.get("entities", [])
     events = data.get("events", [])
-    return urlparse(registry).hostname or "RDAP registry", {
-        "registrar": _registrar(entities) if isinstance(entities, list) else None,
-        "created": _event_date(events, "registration")
-        if isinstance(events, list)
-        else None,
-        "updated": _event_date(events, "last changed")
-        if isinstance(events, list)
-        else None,
-        "expires": _event_date(events, "expiration")
-        if isinstance(events, list)
-        else None,
-        "status": data.get("status", []),
-        "nameservers": [
-            server["ldhName"].lower().rstrip(".")
-            for server in data.get("nameservers", [])
-            if isinstance(server, dict) and isinstance(server.get("ldhName"), str)
-        ],
-    }
+    return ProviderOutcome(
+        urlparse(registry).hostname or "RDAP registry",
+        {
+            "registrar": _registrar(entities) if isinstance(entities, list) else None,
+            "created": _event_date(events, "registration")
+            if isinstance(events, list)
+            else None,
+            "updated": _event_date(events, "last changed")
+            if isinstance(events, list)
+            else None,
+            "expires": _event_date(events, "expiration")
+            if isinstance(events, list)
+            else None,
+            "status": data.get("status", []),
+            "nameservers": [
+                server["ldhName"].lower().rstrip(".")
+                for server in data.get("nameservers", [])
+                if isinstance(server, dict) and isinstance(server.get("ldhName"), str)
+            ],
+        },
+    )

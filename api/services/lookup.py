@@ -5,13 +5,12 @@ from collections.abc import AsyncIterator, Awaitable, Callable, Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from types import MappingProxyType
-from typing import Any
 
 import httpx
 
 from config import settings
 from core.diagnostics import event, failure
-from core.models import ProviderResult
+from core.models import ProviderOutcome, ProviderResult
 from providers import (
     dns,
     dnssec,
@@ -32,7 +31,7 @@ class LookupBusy(Exception):
 class Section:
     source: str
     timeout: float
-    run: Callable[[str], Awaitable[tuple[str, dict[str, Any]]]]
+    run: Callable[[str], Awaitable[ProviderOutcome]]
     cache_ttl: int
 
 
@@ -142,7 +141,7 @@ class LookupService:
             section=key,
             provider=self._sections[key].source,
             outcome=result.status,
-            partial=bool(result.data.get("errors")),
+            partial=result.status == "ok" and result.retryable,
             duration_ms=round((time.monotonic() - started) * 1000, 2),
         )
         return result
@@ -187,8 +186,9 @@ class LookupService:
         )
         try:
             async with asyncio.timeout(section.timeout):
-                result.source, result.data = await section.run(domain)
-            if result.data.get("errors"):
+                outcome = await section.run(domain)
+                result.source, result.data = outcome.source, outcome.data
+            if outcome.partial:
                 result.retryable = True
                 result.message = "Some lookup data was unavailable."
         except (TimeoutError, httpx.TimeoutException) as exc:
