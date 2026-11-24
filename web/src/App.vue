@@ -1,18 +1,18 @@
-<script setup>
+<script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 import DomainSearch from './components/DomainSearch.vue'
 import ResultCards from './ResultCards.vue'
-import { useDomainLookup } from './composables/useDomainLookup.js'
-import { drawPixelMap } from './utils/pixelMap.js'
+import { useDomainLookup } from './composables/useDomainLookup'
+import { drawPixelMap } from './utils/pixelMap'
 
-const searchComponent = ref(null)
+const searchComponent = ref<InstanceType<typeof DomainSearch> | null>(null)
 const { state, resetSearch, investigate, retrySection } = useDomainLookup({
   focusSearch: () => searchComponent.value?.focus(),
 })
 const idle = computed(() => state.streamStatus === 'idle')
-const mapEl = ref(null)
-let mapObserver
+const mapEl = ref<HTMLCanvasElement | null>(null)
+let mapObserver: ResizeObserver | undefined
 function drawMap() {
   drawPixelMap(mapEl.value)
 }

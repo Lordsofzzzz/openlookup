@@ -15,7 +15,7 @@ const land = [
   [[21, 27], [63, 65], [70, 71]], [[22, 27], [70, 71]], [[22, 26]], [[23, 25]],
 ]
 
-export function drawPixelMap(canvas) {
+export function drawPixelMap(canvas: HTMLCanvasElement | null) {
   if (!canvas) return
   const width = canvas.parentElement?.clientWidth || window.innerWidth
   const cell = Math.max(6, Math.floor(Math.min(width, 1200) / columns))

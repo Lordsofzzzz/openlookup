@@ -1,7 +1,7 @@
-<script setup>
+<script setup lang="ts">
 import { ref } from 'vue'
 
-import { useSearchCursor } from '../composables/useSearchCursor.js'
+import { useSearchCursor } from '../composables/useSearchCursor'
 
 defineProps({
   variant: { type: String, required: true },
@@ -10,8 +10,8 @@ defineProps({
 const domain = defineModel({ type: String, required: true })
 defineEmits(['investigate'])
 
-const inputEl = ref(null)
-const cursorEl = ref(null)
+const inputEl = ref<HTMLInputElement | null>(null)
+const cursorEl = ref<HTMLElement | null>(null)
 const { setInput, setCursor } = useSearchCursor(inputEl, cursorEl)
 
 function focus() {

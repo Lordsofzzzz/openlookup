@@ -1,32 +1,35 @@
 import { onBeforeUnmount, onMounted, reactive } from 'vue'
 
-const sectionNames = [
-  'ip',
-  'dns',
-  'dnssec',
-  'rdap',
-  'subdomains',
-  'exposure',
-  'email_security',
-]
+import { decodeResult, unreadable, type SectionName, type Sections } from '../lookupResults'
+
+interface LookupState {
+  domain: string
+  resultDomain: string
+  notice: string
+  sections: Sections
+  retries: Partial<Record<SectionName, boolean>>
+  retryErrors: Partial<Record<SectionName, string>>
+  streamStatus: 'idle' | 'loading' | 'complete' | 'error'
+}
+
 const domainPattern = /^(?=.{1,253}$)([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+(?:[a-z]{2,63}|xn--[a-z0-9-]{2,59})$/
 
 function createBrowserAdapters() {
   return {
     createAbortController: () => new AbortController(),
-    createEventSource: url => new EventSource(url),
-    fetch: (url, options) => fetch(url, options),
+    createEventSource: (url: string) => new EventSource(url),
+    fetch: (url: string, options: RequestInit) => fetch(url, options),
     currentUrl: () => window.location.href,
-    pushState: (state, url) => window.history.pushState(state, '', url),
-    replaceState: (state, url) => window.history.replaceState(state, '', url),
-    addPopStateListener: listener => window.addEventListener('popstate', listener),
-    removePopStateListener: listener => window.removeEventListener('popstate', listener),
-    setHasResults: value => document.body.classList.toggle('has-results', value),
+    pushState: (state: unknown, url: string) => window.history.pushState(state, '', url),
+    replaceState: (state: unknown, url: string) => window.history.replaceState(state, '', url),
+    addPopStateListener: (listener: () => void) => window.addEventListener('popstate', listener),
+    removePopStateListener: (listener: () => void) => window.removeEventListener('popstate', listener),
+    setHasResults: (value: boolean) => document.body.classList.toggle('has-results', value),
   }
 }
 
-export function useDomainLookup({ focusSearch, browser = createBrowserAdapters() } = {}) {
-  const state = reactive({
+export function useDomainLookup({ focusSearch, browser = createBrowserAdapters() }: { focusSearch?: () => void; browser?: ReturnType<typeof createBrowserAdapters> } = {}) {
+  const state = reactive<LookupState>({
     domain: '',
     resultDomain: '',
     notice: '',
@@ -35,10 +38,10 @@ export function useDomainLookup({ focusSearch, browser = createBrowserAdapters()
     retryErrors: {},
     streamStatus: 'idle',
   })
-  const retryControllers = new Map()
-  let eventSource
+  const retryControllers = new Map<SectionName, AbortController>()
+  let eventSource: EventSource | null = null
 
-  function normalize(value) {
+  function normalize(value: string) {
     let candidate = value.trim().toLowerCase().replace(/^[a-z]+:\/\//, '').split(/[/?#]/)[0].replace(/\.$/, '')
     if (!candidate || !/^[\p{L}\p{N}.-]+$/u.test(candidate)) return ''
     try { candidate = new URL(`http://${candidate}`).hostname.toLowerCase() } catch { return '' }
@@ -57,7 +60,7 @@ export function useDomainLookup({ focusSearch, browser = createBrowserAdapters()
     state.retryErrors = {}
   }
 
-  function updateLookupUrl(host) {
+  function updateLookupUrl(host: string) {
     const url = new URL(browser.currentUrl())
     const currentUrl = `${url.pathname}${url.search}${url.hash}`
     url.searchParams.set('domain', host)
@@ -108,8 +111,11 @@ export function useDomainLookup({ focusSearch, browser = createBrowserAdapters()
     eventSource = browser.createEventSource(`/api/v1/domain/${encodeURIComponent(host)}/stream`)
     eventSource.addEventListener('section', event => {
       try {
-        const result = JSON.parse(event.data)
-        if (!sectionNames.includes(result.section)) return
+        const result = decodeResult(JSON.parse(event.data))
+        if (!result) {
+          state.notice = 'The API sent an unreadable section response.'
+          return
+        }
         state.sections = { ...state.sections, [result.section]: result }
       } catch {
         state.notice = 'The API sent an unreadable section response.'
@@ -127,7 +133,7 @@ export function useDomainLookup({ focusSearch, browser = createBrowserAdapters()
     }
   }
 
-  async function retrySection(key) {
+  async function retrySection(key: SectionName) {
     if (state.retries[key]) return
     const controller = browser.createAbortController()
     retryControllers.set(key, controller)
@@ -137,13 +143,13 @@ export function useDomainLookup({ focusSearch, browser = createBrowserAdapters()
       const url = `/api/v1/domain/${encodeURIComponent(state.resultDomain)}/sections/${key}`
       const response = await browser.fetch(url, { signal: controller.signal })
       if (!response.ok) throw new Error('Retry request failed')
-      const result = await response.json()
+      const payload: unknown = await response.json().catch(() => null)
+      const result = decodeResult(payload, key) ?? unreadable(key)
       if (controller.signal.aborted) return
-      if (result.section !== key) throw new Error('Unexpected section')
       if (state.sections[key]?.status === 'ok' && result.status !== 'ok') {
-        state.retryErrors[key] = result.message || 'Retry failed.'
+        state.retryErrors[key] = result.fetched_at === '' ? 'Refresh returned unreadable data.' : result.message || 'Retry failed.'
       } else {
-        state.sections[key] = result
+        state.sections = { ...state.sections, [result.section]: result }
       }
     } catch {
       if (!controller.signal.aborted) state.retryErrors[key] = 'Retry request failed. Try again.'
