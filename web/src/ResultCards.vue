@@ -1,31 +1,15 @@
-<script setup lang="ts">
-import type { DnsRecord, SectionName, Sections } from "./lookupResults"
+<script setup>
 import SectionRetry from './components/SectionRefreshButton.vue'
 
-const props = defineProps<{
-  sections: Sections
-  retries: Partial<Record<SectionName, boolean>>
-  retryErrors: Partial<Record<SectionName, string>>
-  streamStatus: string
-}>()
-defineEmits<{ retry: [section: SectionName] }>()
-const policyKinds = ['spf', 'dmarc', 'mta_sts', 'tls_rpt'] as const
-
-function statusFor(key: SectionName) {
-  return props.sections[key]?.status ?? (props.streamStatus === 'loading' ? 'loading' : 'waiting')
-}
-
-function displayDate(value: string | null) {
-  if (!value) return '—'
-  const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleString()
-}
-
-function dnsRecordValue(record: DnsRecord) {
-  return record.type === 'MX' && /^0(?:\s+\.)?$/.test(record.value.trim())
-    ? 'No mail (null MX)'
-    : record.value
-}
+defineProps({
+  sections: { type: Object, required: true },
+  retries: { type: Object, required: true },
+  retryErrors: { type: Object, required: true },
+  displayDate: { type: Function, required: true },
+  dnsRecordValue: { type: Function, required: true },
+  statusFor: { type: Function, required: true },
+})
+defineEmits(['retry'])
 </script>
 
 <template>
@@ -150,7 +134,7 @@ function dnsRecordValue(record: DnsRecord) {
               <div v-if="sections.email_security?.message" class="note">{{ sections.email_security.message }}</div>
               <Transition name="reveal">
                 <div v-if="sections.email_security?.status === 'ok'">
-                  <div v-for="kind in policyKinds" :key="kind" class="email-policy">
+                  <div v-for="kind in ['spf', 'dmarc', 'mta_sts', 'tls_rpt']" :key="kind" class="email-policy">
                     <div class="email-policy-heading"><strong>{{ kind.replace('_', '-').toUpperCase() }}</strong><span :class="sections.email_security.data[kind].status">{{ sections.email_security.data[kind].status }}</span></div>
                     <p>{{ sections.email_security.data[kind].summary }}</p>
                     <div v-if="kind === 'dmarc' && sections.email_security.data.dmarc.policy" class="email-policy-value"><span>Policy</span><strong>{{ sections.email_security.data.dmarc.policy }}</strong></div>

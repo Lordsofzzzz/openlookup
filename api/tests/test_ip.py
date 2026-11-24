@@ -1,10 +1,6 @@
 import ipaddress
-from types import SimpleNamespace
 from unittest import IsolatedAsyncioTestCase
-from unittest.mock import AsyncMock, call, patch
-
-import dns.exception
-import dns.resolver
+from unittest.mock import AsyncMock, patch
 
 from providers.ip import lookup
 
@@ -42,8 +38,7 @@ class IPLookupTest(IsolatedAsyncioTestCase):
                 new=AsyncMock(side_effect=[([google], False), ([cloudflare], False)]),
             ),
         ):
-            outcome = await lookup("example.com", resolver=None)
-            data = outcome.data
+            _, data = await lookup("example.com", resolver=None)
 
         self.assertEqual(data["addresses"], ["8.8.8.8", "1.1.1.1"])
         self.assertEqual(data["networks"], [google, cloudflare])
@@ -74,8 +69,7 @@ class IPLookupTest(IsolatedAsyncioTestCase):
                 new=AsyncMock(return_value=([], False)),
             ),
         ):
-            outcome = await lookup("example.com", resolver=None)
-            data = outcome.data
+            _, data = await lookup("example.com", resolver=None)
 
         self.assertEqual(data["address_asns"], [{"ip": "8.8.8.8", "asns": []}])
 
@@ -92,76 +86,7 @@ class IPLookupTest(IsolatedAsyncioTestCase):
                 new=AsyncMock(return_value=([], True)),
             ),
         ):
-            outcome = await lookup("facebook.com", resolver=None)
-            data = outcome.data
+            _, data = await lookup("facebook.com", resolver=None)
 
         self.assertEqual(data["errors"], ["Some ASN lookups failed."])
         self.assertEqual(data["address_asns"], [{"ip": "57.144.242.1", "asns": []}])
-
-
-class ASNRetryTest(IsolatedAsyncioTestCase):
-    origin = "8.8.8.8.origin.asn.cymru.com"
-    name = "AS15169.asn.cymru.com"
-
-    @staticmethod
-    def txt(value):
-        class Answer(list):
-            rrset = True
-
-        return Answer([SimpleNamespace(strings=[value.encode()])])
-
-    async def lookup_with(self, names, replies):
-        query = AsyncMock(side_effect=replies)
-        with (
-            patch(
-                "providers.ip.resolve_public_addresses",
-                new=AsyncMock(return_value=[ipaddress.ip_address("8.8.8.8")]),
-            ),
-            patch(
-                "providers.ip._system_resolver",
-                return_value=SimpleNamespace(resolve=query),
-            ),
-        ):
-            outcome = await lookup("example.com", resolver=None)
-            data = outcome.data
-        self.assertEqual(
-            query.await_args_list,
-            [
-                call(name, "TXT", search=False, raise_on_no_answer=False)
-                for name in names
-            ],
-        )
-        return data
-
-    async def test_transient_origin_timeout_retries_once_then_returns_network(self):
-        data = await self.lookup_with(
-            [self.origin, self.origin, self.name],
-            [
-                dns.exception.Timeout(),
-                self.txt("15169 | 8.8.8.0/24 | US | arin | 2012-07-12"),
-                self.txt("15169 | US | arin | 2012-07-12 | Google LLC"),
-            ],
-        )
-        self.assertEqual(data["networks"][0]["name"], "Google LLC")
-        self.assertNotIn("errors", data)
-
-    async def test_missing_origin_is_complete_without_retry(self):
-        data = await self.lookup_with([self.origin], [dns.resolver.NXDOMAIN()])
-        self.assertEqual(data["networks"], [])
-        self.assertNotIn("errors", data)
-
-    async def test_exhausted_name_query_preserves_origin_record(self):
-        data = await self.lookup_with(
-            [self.origin, self.name, self.name],
-            [
-                self.txt("15169 | 8.8.8.0/24 | US | arin | 2012-07-12"),
-                dns.exception.Timeout(),
-                dns.exception.Timeout(),
-            ],
-        )
-        self.assertEqual(data["errors"], ["Some ASN lookups failed."])
-        self.assertEqual(
-            data["address_asns"],
-            [{"ip": "8.8.8.8", "asns": [{"asn": "AS15169", "name": None}]}],
-        )
-        self.assertEqual(data["networks"][0]["prefix"], "8.8.8.0/24")

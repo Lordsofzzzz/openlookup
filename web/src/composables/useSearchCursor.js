@@ -1,7 +1,7 @@
-import { type Ref, onBeforeUnmount } from 'vue'
+import { onBeforeUnmount } from 'vue'
 
-export function useSearchCursor(inputEl: Ref<HTMLInputElement | null>, cursorEl: Ref<HTMLElement | null>) {
-  let removeInputListeners: (() => void) | null = null
+export function useSearchCursor(inputEl, cursorEl) {
+  let removeInputListeners
 
   function placeCursor() {
     const input = inputEl.value
@@ -13,7 +13,6 @@ export function useSearchCursor(inputEl: Ref<HTMLInputElement | null>, cursorEl:
     const styles = getComputedStyle(input)
     const canvas = document.createElement('canvas')
     const context = canvas.getContext('2d')
-    if (!context) return
     context.font = `${styles.fontStyle} ${styles.fontWeight} ${styles.fontSize} ${styles.fontFamily}`
     const x = input.offsetLeft + parseFloat(styles.paddingLeft) + context.measureText(input.value.slice(0, input.selectionStart || 0)).width - input.scrollLeft
     const height = Math.round(parseFloat(styles.fontSize) * 1.3)
@@ -29,8 +28,7 @@ export function useSearchCursor(inputEl: Ref<HTMLInputElement | null>, cursorEl:
     cursor.style.height = `${height}px`
   }
 
-  function setInput(node: unknown) {
-    const element = node instanceof HTMLInputElement ? node : null
+  function setInput(element) {
     removeInputListeners?.()
     inputEl.value = element
     if (!element) return
@@ -46,8 +44,7 @@ export function useSearchCursor(inputEl: Ref<HTMLInputElement | null>, cursorEl:
     setTimeout(placeCursor, 50)
   }
 
-  function setCursor(node: unknown) {
-    const element = node instanceof HTMLElement ? node : null
+  function setCursor(element) {
     cursorEl.value = element
     placeCursor()
   }

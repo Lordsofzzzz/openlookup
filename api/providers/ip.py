@@ -6,8 +6,6 @@ import dns.asyncresolver
 import dns.exception
 import dns.resolver
 
-from core.models import ProviderOutcome
-
 from .dns_resolver import DNSResolverPool
 
 
@@ -125,7 +123,7 @@ async def resolve_public_addresses(
     return sorted(addresses, key=lambda address: (address.version, int(address)))
 
 
-async def lookup(domain: str, resolver: DNSResolverPool) -> ProviderOutcome:
+async def lookup(domain: str, resolver: DNSResolverPool) -> tuple[str, dict[str, Any]]:
     public_addresses = await resolve_public_addresses(domain, resolver)
 
     asn_resolver = _system_resolver()
@@ -160,6 +158,4 @@ async def lookup(domain: str, resolver: DNSResolverPool) -> ProviderOutcome:
     }
     if errors:
         data["errors"] = errors
-    return ProviderOutcome(
-        "Team Cymru DNS via system resolver", data, partial=bool(errors)
-    )
+    return "Team Cymru DNS via system resolver", data

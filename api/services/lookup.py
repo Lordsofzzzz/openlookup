@@ -1,16 +1,16 @@
 import asyncio
 import time
 from collections import OrderedDict
-from collections.abc import AsyncIterator, Awaitable, Callable, Mapping
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from types import MappingProxyType
+from typing import Any
 
 import httpx
 
 from config import settings
 from core.diagnostics import event, failure
-from core.models import ProviderOutcome, ProviderResult
+from core.models import ProviderResult
 from providers import (
     dns,
     dnssec,
@@ -31,7 +31,7 @@ class LookupBusy(Exception):
 class Section:
     source: str
     timeout: float
-    run: Callable[[str], Awaitable[ProviderOutcome]]
+    run: Callable[[str], Awaitable[tuple[str, dict[str, Any]]]]
     cache_ttl: int
 
 
@@ -39,22 +39,15 @@ class LookupService:
     _MAX_CACHE_ENTRIES = 2048
 
     def __init__(
-        self,
-        client: httpx.AsyncClient,
-        resolver: DNSResolverPool,
-        capacity: int,
-        *,
-        sections: Mapping[str, Section] | None = None,
+        self, client: httpx.AsyncClient, resolver: DNSResolverPool, capacity: int
     ):
-        self._client = client
-        self._resolver = resolver
         self.slots = asyncio.Semaphore(capacity)
         self._cache: OrderedDict[tuple[str, str], tuple[float, ProviderResult]] = (
             OrderedDict()
         )
         self._in_flight: dict[tuple[str, str], asyncio.Task[ProviderResult]] = {}
         self._flight_lock = asyncio.Lock()
-        default_sections = {
+        self.sections = {
             "dns": Section(
                 DNS_SOURCE,
                 6,
@@ -98,32 +91,6 @@ class LookupService:
                 max(0, settings.email_security_cache_ttl_seconds),
             ),
         }
-        configured_sections = default_sections if sections is None else sections
-        self._sections = MappingProxyType(dict(configured_sections))
-
-    def has_section(self, key: str) -> bool:
-        return key in self._sections
-
-    async def iter_sections(
-        self, domain: str, *, completion_order: bool = False
-    ) -> AsyncIterator[ProviderResult]:
-        """Yield all sections, cancelling remaining work if the iterator closes."""
-        tasks = [
-            asyncio.create_task(self.lookup_section(domain, key))
-            for key in self._sections
-        ]
-        try:
-            if completion_order:
-                for completed in asyncio.as_completed(tasks):
-                    yield await completed
-            else:
-                for task in tasks:
-                    yield await task
-        finally:
-            for task in tasks:
-                if not task.done():
-                    task.cancel()
-            await asyncio.gather(*tasks, return_exceptions=True)
 
     async def acquire(self):
         try:
@@ -139,9 +106,9 @@ class LookupService:
         event(
             "section_completed",
             section=key,
-            provider=self._sections[key].source,
+            provider=self.sections[key].source,
             outcome=result.status,
-            partial=result.status == "ok" and result.retryable,
+            partial=bool(result.data.get("errors")),
             duration_ms=round((time.monotonic() - started) * 1000, 2),
         )
         return result
@@ -177,7 +144,7 @@ class LookupService:
             self._in_flight.pop(cache_key, None)
 
     async def _fetch_section(self, domain: str, key: str) -> ProviderResult:
-        section = self._sections[key]
+        section = self.sections[key]
         result = ProviderResult(
             section=key,
             source=section.source,
@@ -186,9 +153,8 @@ class LookupService:
         )
         try:
             async with asyncio.timeout(section.timeout):
-                outcome = await section.run(domain)
-                result.source, result.data = outcome.source, outcome.data
-            if outcome.partial:
+                result.source, result.data = await section.run(domain)
+            if result.data.get("errors"):
                 result.retryable = True
                 result.message = "Some lookup data was unavailable."
         except (TimeoutError, httpx.TimeoutException) as exc:

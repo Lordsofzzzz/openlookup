@@ -4,8 +4,6 @@ from typing import Any
 
 import httpx
 
-from core.models import ProviderOutcome
-
 from .dns_resolver import DNSResolverPool
 from .http import ProviderResponseTooLarge, get_json
 from .ip import resolve_public_addresses
@@ -80,7 +78,7 @@ async def _one(address: str, client: httpx.AsyncClient) -> tuple[dict[str, Any],
 
 async def lookup(
     domain: str, resolver: DNSResolverPool, client: httpx.AsyncClient
-) -> ProviderOutcome:
+) -> tuple[str, dict[str, Any]]:
     addresses = await resolve_public_addresses(domain, resolver)
     truncated = len(addresses) > _MAX_HOSTS
     selected = [str(address) for address in addresses[:_MAX_HOSTS]]
@@ -94,8 +92,4 @@ async def lookup(
     ]
     if selected and len(errors) == len(selected):
         raise httpx.TransportError("InternetDB unavailable.")
-    return ProviderOutcome(
-        _SOURCE,
-        {"hosts": hosts, "truncated": truncated, "errors": errors},
-        partial=bool(errors),
-    )
+    return _SOURCE, {"hosts": hosts, "truncated": truncated, "errors": errors}

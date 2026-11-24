@@ -1,4 +1,4 @@
-from contextlib import aclosing
+import asyncio
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Response
@@ -17,8 +17,9 @@ async def lookup_domain(
     response: Response,
 ) -> DomainLookupResponse:
     response.headers["Cache-Control"] = "no-store"
-    async with aclosing(service.iter_sections(domain)) as results_iter:
-        results = [result async for result in results_iter]
+    results = await asyncio.gather(
+        *(service.lookup_section(domain, key) for key in service.sections)
+    )
     return DomainLookupResponse(
         domain=domain, sections={result.section: result for result in results}
     )

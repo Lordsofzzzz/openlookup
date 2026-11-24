@@ -27,7 +27,7 @@ async def get_lookup_service(
     section = request.path_params.get("section")
     if section is not None:
         response.headers["Cache-Control"] = "no-store"
-        if not service.has_section(section):
+        if section not in service.sections:
             raise HTTPException(
                 404,
                 "Unknown lookup section.",

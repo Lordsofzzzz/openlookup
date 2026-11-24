@@ -3,7 +3,6 @@ from typing import Any
 import httpx
 
 from config import settings
-from core.models import ProviderOutcome
 
 from .http import get_json
 
@@ -81,13 +80,10 @@ async def _certspotter(
     return sorted(names)[:_MAX_SUBDOMAINS], True
 
 
-async def lookup(domain: str, client: httpx.AsyncClient) -> ProviderOutcome:
+async def lookup(domain: str, client: httpx.AsyncClient) -> tuple[str, dict[str, Any]]:
     names, truncated = await _certspotter(domain, client)
-    return ProviderOutcome(
-        "Cert Spotter",
-        {
-            "subdomains": names,
-            "count": len(names),
-            "truncated": truncated,
-        },
-    )
+    return "Cert Spotter", {
+        "subdomains": names,
+        "count": len(names),
+        "truncated": truncated,
+    }

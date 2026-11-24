@@ -55,9 +55,7 @@ class ExposureTest(IsolatedAsyncioTestCase):
                 ),
             )
 
-        outcome = await self._lookup(_Resolver(a=["93.184.216.34"]), respond)
-        data = outcome.data
-        source = outcome.source
+        source, data = await self._lookup(_Resolver(a=["93.184.216.34"]), respond)
 
         self.assertEqual(source, "Shodan InternetDB")
         host = data["hosts"][0]
@@ -69,10 +67,9 @@ class ExposureTest(IsolatedAsyncioTestCase):
         self.assertEqual(data["errors"], [])
 
     async def test_404_means_no_data_not_an_error(self):
-        outcome = await self._lookup(
+        _source, data = await self._lookup(
             _Resolver(a=["93.184.216.34"]), lambda request: httpx.Response(404)
         )
-        data = outcome.data
 
         self.assertFalse(data["hosts"][0]["found"])
         self.assertEqual(data["errors"], [])
@@ -81,8 +78,7 @@ class ExposureTest(IsolatedAsyncioTestCase):
         def respond(request):
             self.fail("private address must not be queried")
 
-        outcome = await self._lookup(_Resolver(a=["10.0.0.1", "127.0.0.1"]), respond)
-        data = outcome.data
+        _, data = await self._lookup(_Resolver(a=["10.0.0.1", "127.0.0.1"]), respond)
 
         self.assertEqual(data["hosts"], [])
 
@@ -92,8 +88,7 @@ class ExposureTest(IsolatedAsyncioTestCase):
                 return httpx.Response(200, content=json.dumps({"ports": [443]}))
             return httpx.Response(500)
 
-        outcome = await self._lookup(_Resolver(a=["93.184.216.34", "8.8.8.8"]), respond)
-        data = outcome.data
+        _, data = await self._lookup(_Resolver(a=["93.184.216.34", "8.8.8.8"]), respond)
 
         self.assertEqual(len(data["hosts"]), 2)
         self.assertEqual(len(data["errors"]), 1)
@@ -107,10 +102,9 @@ class ExposureTest(IsolatedAsyncioTestCase):
     async def test_host_count_is_capped(self):
         addresses = [f"8.8.{i}.8" for i in range(15)]
 
-        outcome = await self._lookup(
+        _, data = await self._lookup(
             _Resolver(a=addresses), lambda request: httpx.Response(404)
         )
-        data = outcome.data
 
         self.assertEqual(len(data["hosts"]), 10)
         self.assertTrue(data["truncated"])

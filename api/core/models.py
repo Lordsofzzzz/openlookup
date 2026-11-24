@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Literal
 
@@ -22,10 +21,3 @@ class ProviderResult(BaseModel):
 class DomainLookupResponse(BaseModel):
     domain: str
     sections: dict[str, ProviderResult]
-
-
-@dataclass(frozen=True)
-class ProviderOutcome:
-    source: str
-    data: dict[str, Any]
-    partial: bool = False

@@ -1,6 +1,6 @@
+import asyncio
 import json
 from collections.abc import AsyncIterator
-from contextlib import aclosing
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends
@@ -23,14 +23,20 @@ async def stream_domain(
     service: Annotated[LookupService, Depends(get_lookup_service)],
 ) -> StreamingResponse:
     async def events() -> AsyncIterator[str]:
-        count = 0
-        async with aclosing(
-            service.iter_sections(domain, completion_order=True)
-        ) as results:
-            async for result in results:
-                count += 1
+        tasks = [
+            asyncio.create_task(service.lookup_section(domain, section))
+            for section in service.sections
+        ]
+        try:
+            for completed in asyncio.as_completed(tasks):
+                result = await completed
                 yield _sse("section", result.model_dump(mode="json"))
-        yield _sse("done", {"domain": domain, "sections": count})
+            yield _sse("done", {"domain": domain, "sections": len(tasks)})
+        finally:
+            for task in tasks:
+                if not task.done():
+                    task.cancel()
+            await asyncio.gather(*tasks, return_exceptions=True)
 
     return StreamingResponse(
         events(),

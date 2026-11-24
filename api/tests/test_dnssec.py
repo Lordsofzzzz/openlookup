@@ -18,37 +18,32 @@ class DNSSECTest(IsolatedAsyncioTestCase):
             return await lookup("example.com", client)
 
     async def test_secure_dnskey_answer(self):
-        outcome = await self._lookup(
+        source, data = await self._lookup(
             {
                 "Status": 0,
                 "AD": True,
                 "Answer": [{"type": 48}, {"type": 48}, {"type": 46}],
             }
         )
-        data = outcome.data
-        source = outcome.source
 
         self.assertEqual(source, "Cloudflare DNSSEC validation")
         self.assertEqual(data["status"], "secure")
         self.assertEqual(data["dnskey_count"], 2)
 
     async def test_unsigned_domain(self):
-        outcome = await self._lookup({"Status": 0, "AD": True})
-        data = outcome.data
+        _, data = await self._lookup({"Status": 0, "AD": True})
 
         self.assertEqual(data["status"], "unsigned")
         self.assertEqual(data["dnskey_count"], 0)
 
     async def test_dnssec_validation_failure(self):
-        outcome = await self._lookup(
+        _, data = await self._lookup(
             {"Status": 2, "Comment": ["EDE: 6 (DNSSEC Bogus)"]}
         )
-        data = outcome.data
 
         self.assertEqual(data["status"], "bogus")
 
     async def test_nonexistent_domain(self):
-        outcome = await self._lookup({"Status": 3})
-        data = outcome.data
+        _, data = await self._lookup({"Status": 3})
 
         self.assertEqual(data["status"], "not_found")
