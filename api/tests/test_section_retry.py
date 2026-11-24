@@ -5,8 +5,9 @@ from unittest import IsolatedAsyncioTestCase
 
 import httpx
 
+from config import settings
 from main import app
-from services.lookup import Section
+from services.lookup import LookupService, Section
 
 
 class SectionRetryTest(IsolatedAsyncioTestCase):
@@ -17,7 +18,7 @@ class SectionRetryTest(IsolatedAsyncioTestCase):
                 transport=httpx.ASGITransport(app=app), base_url="http://test"
             ) as client,
         ):
-            service = app.state.lookup
+            original_service = app.state.lookup
             calls = Counter()
 
             def provider(key):
@@ -35,8 +36,25 @@ class SectionRetryTest(IsolatedAsyncioTestCase):
 
                 return run
 
-            for key in service.sections:
-                service.sections[key] = Section("mock", 1, provider(key), 0)
+            sections = {
+                key: Section("mock", 1, provider(key), 0)
+                for key in (
+                    "dns",
+                    "dnssec",
+                    "rdap",
+                    "subdomains",
+                    "ip",
+                    "exposure",
+                    "email_security",
+                )
+            }
+            service = LookupService(
+                original_service._client,
+                original_service._resolver,
+                settings.max_concurrent_lookups,
+                sections=sections,
+            )
+            app.state.lookup = service
 
             base = "/api/v1/domain/Example.com"
             stream = await client.get(base + "/stream")

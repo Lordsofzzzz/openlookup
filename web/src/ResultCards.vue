@@ -1,15 +1,29 @@
 <script setup>
 import SectionRetry from './components/SectionRefreshButton.vue'
 
-defineProps({
+const props = defineProps({
   sections: { type: Object, required: true },
   retries: { type: Object, required: true },
   retryErrors: { type: Object, required: true },
-  displayDate: { type: Function, required: true },
-  dnsRecordValue: { type: Function, required: true },
-  statusFor: { type: Function, required: true },
+  streamStatus: { type: String, required: true },
 })
 defineEmits(['retry'])
+
+function statusFor(key) {
+  return props.sections[key]?.status ?? (props.streamStatus === 'loading' ? 'loading' : 'waiting')
+}
+
+function displayDate(value) {
+  if (!value) return '—'
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString()
+}
+
+function dnsRecordValue(record) {
+  return record.type === 'MX' && /^0(?:\s+\.)?$/.test(record.value.trim())
+    ? 'No mail (null MX)'
+    : record.value
+}
 </script>
 
 <template>

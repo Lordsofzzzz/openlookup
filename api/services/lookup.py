@@ -1,9 +1,10 @@
 import asyncio
 import time
 from collections import OrderedDict
-from collections.abc import Awaitable, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable, Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from types import MappingProxyType
 from typing import Any
 
 import httpx
@@ -39,15 +40,22 @@ class LookupService:
     _MAX_CACHE_ENTRIES = 2048
 
     def __init__(
-        self, client: httpx.AsyncClient, resolver: DNSResolverPool, capacity: int
+        self,
+        client: httpx.AsyncClient,
+        resolver: DNSResolverPool,
+        capacity: int,
+        *,
+        sections: Mapping[str, Section] | None = None,
     ):
+        self._client = client
+        self._resolver = resolver
         self.slots = asyncio.Semaphore(capacity)
         self._cache: OrderedDict[tuple[str, str], tuple[float, ProviderResult]] = (
             OrderedDict()
         )
         self._in_flight: dict[tuple[str, str], asyncio.Task[ProviderResult]] = {}
         self._flight_lock = asyncio.Lock()
-        self.sections = {
+        default_sections = {
             "dns": Section(
                 DNS_SOURCE,
                 6,
@@ -91,6 +99,32 @@ class LookupService:
                 max(0, settings.email_security_cache_ttl_seconds),
             ),
         }
+        configured_sections = default_sections if sections is None else sections
+        self._sections = MappingProxyType(dict(configured_sections))
+
+    def has_section(self, key: str) -> bool:
+        return key in self._sections
+
+    async def iter_sections(
+        self, domain: str, *, completion_order: bool = False
+    ) -> AsyncIterator[ProviderResult]:
+        """Yield all sections, cancelling remaining work if the iterator closes."""
+        tasks = [
+            asyncio.create_task(self.lookup_section(domain, key))
+            for key in self._sections
+        ]
+        try:
+            if completion_order:
+                for completed in asyncio.as_completed(tasks):
+                    yield await completed
+            else:
+                for task in tasks:
+                    yield await task
+        finally:
+            for task in tasks:
+                if not task.done():
+                    task.cancel()
+            await asyncio.gather(*tasks, return_exceptions=True)
 
     async def acquire(self):
         try:
@@ -106,7 +140,7 @@ class LookupService:
         event(
             "section_completed",
             section=key,
-            provider=self.sections[key].source,
+            provider=self._sections[key].source,
             outcome=result.status,
             partial=bool(result.data.get("errors")),
             duration_ms=round((time.monotonic() - started) * 1000, 2),
@@ -144,7 +178,7 @@ class LookupService:
             self._in_flight.pop(cache_key, None)
 
     async def _fetch_section(self, domain: str, key: str) -> ProviderResult:
-        section = self.sections[key]
+        section = self._sections[key]
         result = ProviderResult(
             section=key,
             source=section.source,
