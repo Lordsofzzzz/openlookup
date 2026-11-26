@@ -18,6 +18,8 @@ spec:
       containers:
         - name: cloudflared
           image: {{ .Values.cloudflared.image | quote }}
+          resources:
+            {{- toYaml .Values.cloudflared.resources | nindent 12 }}
           args:
             - tunnel
             - --no-autoupdate
