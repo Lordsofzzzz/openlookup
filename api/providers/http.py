@@ -14,12 +14,18 @@ async def get_json(
     client: httpx.AsyncClient,
     url: str,
     *,
+    timeout: httpx.Timeout | None = None,
     params: dict[str, str] | None = None,
     headers: dict[str, str] | None = None,
 ) -> Any:
     """Read bounded JSON from a fixed provider URL, without following redirects."""
     async with client.stream(
-        "GET", url, params=params, headers=headers, follow_redirects=False
+        "GET",
+        url,
+        timeout=timeout if timeout is not None else client.timeout,
+        params=params,
+        headers=headers,
+        follow_redirects=False,
     ) as response:
         response.raise_for_status()
         content_length = response.headers.get("content-length")

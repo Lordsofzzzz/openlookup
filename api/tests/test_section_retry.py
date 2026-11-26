@@ -45,7 +45,7 @@ class SectionRetryTest(IsolatedAsyncioTestCase):
                 for line in stream.text.splitlines()
                 if line.startswith("data: ")
             ]
-            self.assertEqual(events.pop(), {"domain": "example.com", "sections": 7})
+            self.assertEqual(events.pop(), {"domain": "example.com", "sections": 8})
             sections = {event["section"]: event for event in events}
             self.assertEqual(sections["rdap"]["status"], "timeout")
             self.assertTrue(sections["rdap"]["retryable"])
@@ -63,6 +63,7 @@ class SectionRetryTest(IsolatedAsyncioTestCase):
                 Counter(
                     dns=1,
                     dnssec=1,
+                    trust_score=1,
                     rdap=2,
                     subdomains=1,
                     ip=1,
@@ -77,7 +78,7 @@ class SectionRetryTest(IsolatedAsyncioTestCase):
                 (await client.get("/api/v1/domain/invalid/sections/ip")).status_code,
                 422,
             )
-            self.assertEqual(len((await client.get(base)).json()["sections"]), 7)
+            self.assertEqual(len((await client.get(base)).json()["sections"]), 8)
 
             service.slots = asyncio.Semaphore(0)
             busy = await client.get(base + "/sections/dns")

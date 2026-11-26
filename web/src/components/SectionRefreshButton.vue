@@ -1,7 +1,7 @@
 <script setup>
 import { ref, watch } from 'vue'
 
-const props = defineProps({ status: String, pending: Boolean, error: String })
+const props = defineProps({ label: { type: String, default: 'Refresh section' }, status: String, pending: Boolean, error: String })
 defineEmits(['retry'])
 
 // `spinning` outlives `pending` until the current turn finishes,
@@ -25,8 +25,8 @@ function onIteration() {
       :class="[status, { busy: spinning }]"
       :disabled="pending"
       :aria-busy="pending"
-      :aria-label="pending ? 'Refreshing section' : 'Refresh section'"
-      :title="pending ? 'Refreshing…' : 'Refresh section'"
+      :aria-label="pending ? 'Refreshing section' : label"
+      :title="pending ? 'Refreshing…' : label"
       @click="$emit('retry')"
     >
       <svg

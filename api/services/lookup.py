@@ -19,6 +19,7 @@ from providers import (
     ip,
     rdap,
     subdomains,
+    trust_score,
 )
 from providers.dns_resolver import DNS_SOURCE, DNSResolverPool
 
@@ -52,6 +53,12 @@ class LookupService:
                 DNS_SOURCE,
                 6,
                 lambda name: dns.lookup(name, resolver),
+                max(0, settings.dns_cache_ttl_seconds),
+            ),
+            "trust_score": Section(
+                trust_score.SOURCE,
+                70,
+                lambda name: trust_score.lookup(name, client),
                 max(0, settings.dns_cache_ttl_seconds),
             ),
             "dnssec": Section(

@@ -104,6 +104,36 @@ defineEmits(['retry'])
 
           <aside class="side-col">
             <section class="side-section">
+              <h2 class="side-heading">WebTrustScore <SectionRetry label="Check for updated report" :status="statusFor('trust_score')" :pending="statusFor('trust_score') === 'loading' || !!retries.trust_score" :error="retryErrors.trust_score" @retry="$emit('retry', 'trust_score')" /></h2>
+              <div v-if="sections.trust_score?.status === 'ok'" class="dnssec-result">
+                <template v-if="sections.trust_score.data.scored === false">
+                  <p>No existing WebTrustScore report.</p>
+                  <a href="https://webtrustscore.com/" target="_blank" rel="noreferrer">Request a scan at WebTrustScore</a>
+                </template>
+                <template v-else>
+                  <div class="email-policy-heading">
+                    <strong>{{ sections.trust_score.data.score }} / 1000</strong>
+                    <span v-if="sections.trust_score.data.band">{{ sections.trust_score.data.band }}</span>
+                  </div>
+                  <p>{{ sections.trust_score.data.scannedAt ? 'Scanned ' + displayDate(sections.trust_score.data.scannedAt) : 'Scan date unavailable' }}</p>
+                  <details v-if="sections.trust_score.data.signals?.length">
+                    <summary class="section-meta">Score breakdown</summary>
+                    <div v-for="signal in sections.trust_score.data.signals" :key="signal.label" class="email-policy">
+                      <div class="email-policy-value"><strong>{{ signal.label }}</strong>
+                      <span>{{ signal.value == null ? 'Unavailable' : signal.value + '/100' }}</span></div>
+                      <p>Confidence {{ signal.confidence == null ? 'unavailable' : signal.confidence + '%' }}</p>
+                    </div>
+                  </details>
+                  <p v-else>Signal breakdown unavailable</p>
+                  <div class="section-meta">
+                    <a :href="sections.trust_score.data.report" target="_blank" rel="noreferrer">View scoring evidence</a>
+                    <span v-if="sections.trust_score.data.modelVersion"> · Model {{ sections.trust_score.data.modelVersion }}</span>
+                  </div>
+                </template>
+              </div>
+              <div v-else-if="sections.trust_score?.message" class="note">WebTrustScore is temporarily unavailable.</div>
+            </section>
+            <section class="side-section">
               <h2 class="side-heading">DNSSEC <SectionRetry :status="statusFor('dnssec')" :pending="statusFor('dnssec') === 'loading' || !!retries.dnssec" :error="retryErrors.dnssec" @retry="$emit('retry', 'dnssec')" /></h2>
               <div v-if="sections.dnssec?.message" class="note">{{ sections.dnssec.message }}</div>
               <div v-if="sections.dnssec?.status === 'ok'" class="dnssec-result">

@@ -4,6 +4,7 @@ const sectionNames = [
   'ip',
   'dns',
   'dnssec',
+  'trust_score',
   'rdap',
   'subdomains',
   'exposure',

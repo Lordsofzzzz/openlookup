@@ -81,6 +81,7 @@ onBeforeUnmount(() => {
           <div class="page-subtitle">Inspect public DNS, email policy, registration, certificate, and network data.</div>
         </div>
         <DomainSearch variant="main" v-model="domain" :idle="idle" :stream-status="streamStatus" :set-input="setInput" :set-cursor="setCursor" @investigate="investigate()" />
+          <p class="note">We share the domain with lookup providers, including WebTrustScore.</p>
         <div class="search-hint">PUBLIC SOURCES ONLY · NO ACTIVE PROBING</div>
       </section>
       <div v-if="notice" id="notice" role="status">{{ notice }}</div>
