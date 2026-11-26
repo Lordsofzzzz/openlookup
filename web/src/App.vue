@@ -22,22 +22,8 @@ const {
   retrySection,
 } = useDomainLookup(inputEl)
 const mapEl = ref(null)
-const cursorElement = ref(null)
 let mapObserver
-function sectionStatus(key) {
-  return sections.value[key]?.status ?? (streamStatus.value === 'loading' ? 'loading' : 'waiting')
-}
-function displayDate(value) {
-  if (!value) return '—'
-  const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleString()
-}
-function dnsRecordValue(record) {
-  return record.type === 'MX' && /^0(?:\s+\.)?$/.test(record.value.trim())
-    ? 'No mail (null MX)'
-    : record.value
-}
-const { setInput, setCursor } = useSearchCursor(inputEl, cursorElement)
+const { setContainer } = useSearchCursor(inputEl)
 function drawMap() {
   drawPixelMap(mapEl.value)
 }
@@ -63,7 +49,7 @@ onBeforeUnmount(() => {
   <div class="shell">
     <header class="topbar">
       <a class="brand" href="#" aria-label="OpenLookup home" @click.prevent="resetSearch()"><span class="brand-mark"><svg width="18" height="18" viewBox="0 0 9 9" shape-rendering="crispEdges" aria-hidden="true"><rect x="1" y="0" width="4" height="1" fill="#11180f"/><rect x="0" y="1" width="1" height="1" fill="#11180f"/><rect x="5" y="1" width="1" height="1" fill="#11180f"/><rect x="0" y="2" width="1" height="1" fill="#11180f"/><rect x="5" y="2" width="1" height="1" fill="#11180f"/><rect x="2" y="2" width="2" height="1" fill="#4a6637"/><rect x="0" y="3" width="1" height="1" fill="#11180f"/><rect x="5" y="3" width="1" height="1" fill="#11180f"/><rect x="2" y="3" width="1" height="1" fill="#4a6637"/><rect x="0" y="4" width="1" height="1" fill="#11180f"/><rect x="5" y="4" width="1" height="1" fill="#11180f"/><rect x="1" y="5" width="4" height="1" fill="#11180f"/><rect x="6" y="5" width="1" height="1" fill="#11180f"/><rect x="6" y="6" width="2" height="1" fill="#11180f"/><rect x="7" y="7" width="2" height="1" fill="#11180f"/><rect x="8" y="8" width="1" height="1" fill="#11180f"/></svg></span><span class="brand-text">OpenLookup</span></a>
-      <DomainSearch variant="top" v-model="domain" :idle="idle" :stream-status="streamStatus" :set-input="setInput" :set-cursor="setCursor" @investigate="investigate()" />
+      <DomainSearch variant="top" v-model="domain" :idle="idle" :stream-status="streamStatus" :set-container="setContainer" @investigate="investigate()" />
       <a v-if="idle" class="gh-link" href="https://github.com/lordsofzzzz/openlookup" target="_blank" rel="noopener noreferrer" aria-label="OpenLookup on GitHub">
         <svg viewBox="0 0 12 12" width="24" height="24" shape-rendering="crispEdges" aria-hidden="true">
           <path class="gh-disc" d="M3 0h6v1h-6z M2 1h8v1h-8z M1 2h10v1h-10z M0 3h12v6h-12z M1 9h10v1h-10z M2 10h8v1h-8z M3 11h6v1h-6z" />
@@ -80,8 +66,7 @@ onBeforeUnmount(() => {
           <h1 class="page-title">Domain investigation</h1>
           <div class="page-subtitle">Inspect public DNS, email policy, registration, certificate, and network data.</div>
         </div>
-        <DomainSearch variant="main" v-model="domain" :idle="idle" :stream-status="streamStatus" :set-input="setInput" :set-cursor="setCursor" @investigate="investigate()" />
-          <p class="note">We share the domain with lookup providers, including WebTrustScore.</p>
+        <DomainSearch variant="main" v-model="domain" :idle="idle" :stream-status="streamStatus" :set-container="setContainer" @investigate="investigate()" />
         <div class="search-hint">PUBLIC SOURCES ONLY · NO ACTIVE PROBING</div>
       </section>
       <div v-if="notice" id="notice" role="status">{{ notice }}</div>
@@ -96,9 +81,7 @@ onBeforeUnmount(() => {
           :sections="sections"
           :retries="retries"
           :retry-errors="retryErrors"
-          :display-date="displayDate"
-          :dns-record-value="dnsRecordValue"
-          :status-for="sectionStatus"
+          :stream-status="streamStatus"
           @retry="retrySection"
         />
       </section>
