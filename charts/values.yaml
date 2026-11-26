@@ -9,7 +9,7 @@ api:
       memory: 512Mi
   image:
     repository: ghcr.io/lordsofzzzz/openlookup-backend
-    tag: main-dfa04a4
+    tag: main-165e0bd
 
 web:
   replicas: 1
@@ -22,7 +22,7 @@ web:
       memory: 256Mi
   image:
     repository: ghcr.io/lordsofzzzz/openlookup-frontend
-    tag: main-dfa04a4
+    tag: main-165e0bd
 
 cloudflared:
   enabled: true
